@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef } from "react";
-import { Upload, FileCode, CheckCircle, Database, HelpCircle, Loader2, ArrowRight } from "lucide-react";
+import { Upload, FileCode, CheckCircle, Database, HelpCircle, Loader2, ArrowRight, Usb, FolderOpen } from "lucide-react";
 import { parseKindleVocabDb } from "../utils/sqliteParser";
 import { saveBooks, saveWords, saveRawDbFile } from "../utils/db";
 import { Book, Word } from "../types";
@@ -133,29 +133,30 @@ export default function UploadPanel({
       {/* Step Guide Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Step 1 */}
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex gap-3 text-left">
-          <div className="h-6 w-6 rounded bg-slate-200 text-slate-800 flex items-center justify-center font-bold shrink-0 text-xs shadow-sm">
-            1
+        <div className="p-5 bg-white border border-slate-200 rounded-xl flex gap-4 text-left shadow-sm hover:shadow-md transition">
+          <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 shadow-sm">
+            <Usb className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <h4 className="font-semibold text-slate-900 text-xs">Import Kindle Database File</h4>
+            <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Step 1</div>
+            <h4 className="font-bold text-slate-900 text-sm">Connect your Kindle</h4>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Connect your Kindle reader to your computer via USB.
+              Plug your Kindle reader into your computer via a USB cable.
             </p>
           </div>
         </div>
 
         {/* Step 2 */}
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex gap-3 text-left">
-          <div className="h-6 w-6 rounded bg-slate-200 text-slate-800 flex items-center justify-center font-bold shrink-0 text-xs shadow-sm">
-            2
+        <div className="p-5 bg-white border border-slate-200 rounded-xl flex gap-4 text-left shadow-sm hover:shadow-md transition">
+          <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm">
+            <FolderOpen className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <h4 className="font-semibold text-slate-900 text-xs">Locate Database File</h4>
+            <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Step 2</div>
+            <h4 className="font-bold text-slate-900 text-sm">Locate Database File</h4>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Open your Kindle root directory and locate the file at:
-              <br />
-              <code className="bg-slate-250/75 text-slate-705 px-1.5 py-0.5 rounded text-[10px] select-all font-mono font-bold block mt-1.5 border border-slate-200">
+              Open the Kindle root directory and select the database file at:
+              <code className="bg-slate-50 text-slate-700 px-1.5 py-0.5 rounded text-[10px] select-all font-mono font-bold block mt-1.5 border border-slate-200">
                 /system/vocabulary/vocab.db
               </code>
             </p>
