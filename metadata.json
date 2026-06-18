@@ -1,0 +1,6 @@
+{
+  "name": "Kindle Vocabulary to Anki",
+  "description": "Upload your Kindle vocab.db file, parse words with contexts, generate cards using Gemini AI, and export them directly to Anki or CSV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
