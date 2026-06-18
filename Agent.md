@@ -59,6 +59,13 @@ To provide real-life utility suggestions without incurring AI complexity or API 
 - If the user clicks the "Stop" button in the progress bar, the process aborts immediately.
 - To prevent loss of progress, any translations retrieved prior to clicking "Stop" are safely written into IndexedDB before the task terminates.
 
+### 7. Repacking & Downloading vocab.db back to Kindle
+To synchronize word deletions back to the Kindle reader:
+- The raw binary structure of the uploaded `vocab.db` file is stored in a dedicated `dbFile` object store in IndexedDB (schema version 2).
+- When the user requests a Kindle database download, the utility [sqliteParser.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/sqliteParser.ts) loads this original binary and instantiates a SQL.js database.
+- It queries the remaining words list from IndexedDB, runs deletion queries on both the `WORDS` and `LOOKUPS` tables for any removed items, and outputs the updated database binary.
+- This preserves native Kindle tables, indices, triggers, and configurations perfectly.
+
 ---
 
 ## File Structure

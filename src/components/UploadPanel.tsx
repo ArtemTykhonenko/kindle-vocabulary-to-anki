@@ -6,7 +6,7 @@
 import React, { useState, useRef } from "react";
 import { Upload, FileCode, CheckCircle, Database, HelpCircle, Loader2, ArrowRight } from "lucide-react";
 import { parseKindleVocabDb } from "../utils/sqliteParser";
-import { saveBooks, saveWords } from "../utils/db";
+import { saveBooks, saveWords, saveRawDbFile } from "../utils/db";
 import { Book, Word } from "../types";
 
 interface UploadPanelProps {
@@ -59,6 +59,14 @@ export default function UploadPanel({
 
       // 3. Save parsed words checking for existing duplicates elegantly
       const { newCount, updatedCount } = await saveWords(words);
+
+      // 4. Save raw database binary for export back to Kindle
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        await saveRawDbFile(arrayBuffer);
+      } catch (e) {
+        console.error("Failed to store raw db backup in IndexedDB:", e);
+      }
 
       setSuccessInfo({
         newWords: newCount,

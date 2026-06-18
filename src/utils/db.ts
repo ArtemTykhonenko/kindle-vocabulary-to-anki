@@ -6,7 +6,7 @@
 import { Book, Word } from "../types";
 
 const DB_NAME = "KindleAnkiExporterDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -39,6 +39,11 @@ export function getDB(): Promise<IDBDatabase> {
       // Store for words
       if (!db.objectStoreNames.contains("words")) {
         db.createObjectStore("words", { keyPath: "id" });
+      }
+
+      // Store for raw database file
+      if (!db.objectStoreNames.contains("dbFile")) {
+        db.createObjectStore("dbFile");
       }
     };
   });
@@ -183,18 +188,44 @@ export async function updateWordsBatch(words: Word[]): Promise<void> {
   });
 }
 
+export async function saveRawDbFile(arrayBuffer: ArrayBuffer): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction("dbFile", "readwrite");
+    const store = transaction.objectStore("dbFile");
+    const request = store.put(arrayBuffer, "rawBinary");
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getRawDbFile(): Promise<ArrayBuffer | null> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction("dbFile", "readonly");
+    const store = transaction.objectStore("dbFile");
+    const request = store.get("rawBinary");
+
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 /**
  * Clear all data from local DB
  */
 export async function clearAllLocalData(): Promise<void> {
   const db = await getDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(["books", "words"], "readwrite");
+    const transaction = db.transaction(["books", "words", "dbFile"], "readwrite");
     const booksStore = transaction.objectStore("books");
     const wordsStore = transaction.objectStore("words");
+    const dbFileStore = transaction.objectStore("dbFile");
 
     booksStore.clear();
     wordsStore.clear();
+    dbFileStore.clear();
 
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);

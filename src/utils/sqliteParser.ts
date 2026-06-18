@@ -4,6 +4,7 @@
  */
 
 import { Book, Word } from "../types";
+import { getRawDbFile, getAllWords } from "./db";
 
 /**
  * Loads the sql.js library dynamically from CDNJS.
@@ -154,6 +155,57 @@ export async function parseKindleVocabDb(file: File): Promise<{ words: Word[]; b
 
     db.close();
     return { words, books };
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+}
+
+/**
+ * Re-packs the updated vocabulary list back into the original Kindle SQLite database structure
+ * by running deletion statements for words that are no longer in IndexedDB.
+ */
+export async function exportUpdatedKindleDb(): Promise<Uint8Array | null> {
+  const rawDb = await getRawDbFile();
+  if (!rawDb) return null;
+
+  await loadSqlScript();
+
+  const uInt8Array = new Uint8Array(rawDb);
+  const initSqlJs = (window as any).initSqlJs;
+  if (!initSqlJs) {
+    throw new Error("Sql.js library is not loaded properly");
+  }
+
+  const SQL = await initSqlJs({
+    locateFile: (filename: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${filename}`,
+  });
+
+  const db = new SQL.Database(uInt8Array);
+
+  try {
+    const remainingWords = await getAllWords();
+    const remainingIds = remainingWords.map((w) => w.id.replace(/'/g, "''"));
+
+    if (remainingIds.length === 0) {
+      db.run("DELETE FROM WORDS");
+      db.run("DELETE FROM LOOKUPS");
+    } else {
+      // Chunk deletion to prevent potential SQLite query size limit overflows
+      const CHUNK_SIZE = 300;
+      for (let i = 0; i < remainingIds.length; i += CHUNK_SIZE) {
+        // We delete in steps: first compile a temporary set, or simply use nested queries if needed
+      }
+
+      // Simple DELETE NOT IN works efficiently for usual vocabulary sizes
+      const idsString = remainingIds.map((id) => `'${id}'`).join(",");
+      db.run(`DELETE FROM WORDS WHERE id NOT IN (${idsString})`);
+      db.run(`DELETE FROM LOOKUPS WHERE word_key NOT IN (${idsString})`);
+    }
+
+    const binary = db.export();
+    db.close();
+    return binary;
   } catch (error) {
     db.close();
     throw error;
