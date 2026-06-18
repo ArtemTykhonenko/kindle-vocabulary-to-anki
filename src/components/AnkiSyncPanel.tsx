@@ -18,8 +18,10 @@ import {
   Sparkles,
   Layers,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Download
 } from "lucide-react";
+import { exportUpdatedKindleDb } from "../utils/sqliteParser";
 
 interface AnkiSyncPanelProps {
   words: Word[];
@@ -112,6 +114,36 @@ export default function AnkiSyncPanel({
       }
     }
     exportToTsvStyled(readyWords);
+  };
+
+  const [isExportingDb, setIsExportingDb] = useState(false);
+
+  const handleDownloadKindleDb = async () => {
+    setIsExportingDb(true);
+    try {
+      const binary = await exportUpdatedKindleDb();
+      if (!binary) {
+        alert(
+          "No raw Kindle database backup found in your browser storage. To enable database downloads, please re-import your vocab.db file on the home page."
+        );
+        return;
+      }
+
+      const blob = new Blob([binary], { type: "application/x-sqlite3" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "vocab.db";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to rebuild Kindle database: " + (err.message || String(err)));
+    } finally {
+      setIsExportingDb(false);
+    }
   };
 
   return (
@@ -214,7 +246,7 @@ export default function AnkiSyncPanel({
             </div>
 
             <div className="pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Export to local AnkiConnect */}
                 <button
                   onClick={handleSyncToAnkiConnect}
@@ -243,6 +275,26 @@ export default function AnkiSyncPanel({
                 >
                   <FileSpreadsheet className="h-4 w-4 text-white" />
                   Download File for Anki
+                </button>
+
+                {/* Download Kindle vocab.db */}
+                <button
+                  onClick={handleDownloadKindleDb}
+                  disabled={isExportingDb}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer select-none"
+                  title="Download modified vocab.db to sync deletions back to Kindle"
+                >
+                  {isExportingDb ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin text-slate-400" />
+                      Generating DB...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 text-slate-600" />
+                      Download Kindle DB
+                    </>
+                  )}
                 </button>
               </div>
             </div>
