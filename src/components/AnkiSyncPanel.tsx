@@ -228,7 +228,7 @@ export default function AnkiSyncPanel({
               <h3 className="font-semibold text-slate-900 text-sm">Synchronize Cards</h3>
               <p className="text-xs text-slate-400">Pushes vocabulary cards to your selected target deck</p>
             </div>
-            <div className="shrink-0 text-xs font-semibold text-slate-600 font-mono bg-blue-50 border border-blue-105/10 px-2.5 py-1 rounded">
+            <div className="shrink-0 text-xs font-semibold text-slate-650 font-mono bg-slate-100 border border-slate-200 px-2.5 py-1 rounded">
               {readyWords.length} / {totalWords} cards ready
             </div>
           </div>
@@ -241,7 +241,7 @@ export default function AnkiSyncPanel({
                 value={deckName}
                 onChange={(e) => setDeckName(e.target.value)}
                 placeholder="Kindle Vocabulary"
-                className="w-full text-sm border border-slate-200 bg-slate-50/50 hover:bg-slate-50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-blue-600 transition"
+                className="w-full text-sm border border-slate-200 bg-slate-50/50 hover:bg-slate-50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition"
               />
             </div>
 
@@ -250,7 +250,7 @@ export default function AnkiSyncPanel({
               <button
                 onClick={handleSyncToAnkiConnect}
                 disabled={isSyncing || readyWords.length === 0}
-                className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-slate-900 hover:bg-black disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
               >
                 {isSyncing ? (
                   <>
@@ -270,7 +270,7 @@ export default function AnkiSyncPanel({
                 onClick={handleDownloadCsv}
                 className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer select-none"
               >
-                <FileSpreadsheet className="h-4 w-4 text-emerald-650" />
+                <FileSpreadsheet className="h-4 w-4 text-slate-600" />
                 Download CSV Deck
               </button>
 
@@ -288,7 +288,7 @@ export default function AnkiSyncPanel({
                   </>
                 ) : (
                   <>
-                    <Download className="h-4 w-4 text-indigo-600" />
+                    <Download className="h-4 w-4 text-slate-600" />
                     Download Kindle DB
                   </>
                 )}
@@ -334,7 +334,7 @@ export default function AnkiSyncPanel({
                 href="https://apps.ankiweb.net/"
                 target="_blank"
                 referrerPolicy="no-referrer"
-                className="text-blue-600 font-semibold inline-flex items-center gap-0.5 hover:underline"
+                className="text-slate-900 font-bold inline-flex items-center gap-0.5 hover:underline"
               >
                 Anki Desktop
                 <ExternalLink className="h-3 w-3" />
@@ -357,7 +357,7 @@ export default function AnkiSyncPanel({
             <li>
               Restart Anki. Now configure origin permissions:
               <br />
-              Select <span className="font-semibold">AnkiConnect</span> within Anki Add-ons list, click <span className="font-bold text-blue-600">Config</span>, and add your current app origin to <code className="font-mono">webCorsOriginList</code>:
+              Select <span className="font-semibold">AnkiConnect</span> within Anki Add-ons list, click <span className="font-bold text-slate-900">Config</span>, and add your current app origin to <code className="font-mono">webCorsOriginList</code>:
               <pre className="bg-slate-900 text-slate-100 p-2 rounded text-[9px] block mt-1 overflow-x-auto font-mono select-all">
 {`{
   "apiKey": null,

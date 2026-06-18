@@ -320,15 +320,15 @@ export default function VocabularyTable({
           <h2 className="text-xl font-bold tracking-tight text-slate-900 font-sans">Vocabulary Manager</h2>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
             <span className="flex items-center gap-1">
-              <Database className="h-3.5 w-3.5 text-blue-500" />
+              <Database className="h-3.5 w-3.5 text-slate-600" />
               <b>{words.length}</b> total words
             </span>
             <span className="flex items-center gap-1">
-              <BookOpen className="h-3.5 w-3.5 text-indigo-500" />
+              <BookOpen className="h-3.5 w-3.5 text-slate-600" />
               <b>{books.length}</b> ebooks
             </span>
             <span className="flex items-center gap-1">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+              <CheckCircle className="h-3.5 w-3.5 text-slate-600" />
               <b>{translatedCount}</b> ready to sync
             </span>
           </div>
@@ -342,7 +342,7 @@ export default function VocabularyTable({
           </button>
           <button
             onClick={onNavigateToExport}
-            className="inline-flex items-center gap-1.5 px-4.5 py-2 bg-blue-600 hover:bg-blue-705 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow hover:scale-[1.01]"
+            className="inline-flex items-center gap-1.5 px-4.5 py-2 bg-slate-900 hover:bg-black text-white font-bold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow hover:scale-[1.01]"
           >
             Export & Sync
             <ArrowRight className="h-3.5 w-3.5" />
@@ -360,7 +360,7 @@ export default function VocabularyTable({
             placeholder="Search words, root stems, books..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 hover:bg-slate-100 focus:bg-white focus:outline-none focus:border-blue-600 transition"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 hover:bg-slate-100 focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition"
           />
         </div>
 
@@ -372,7 +372,7 @@ export default function VocabularyTable({
             <select
               value={sourceLang}
               onChange={(e) => setSourceLang(e.target.value)}
-              className="text-xs bg-white border border-slate-200 rounded-md px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer"
+              className="text-xs bg-white border border-slate-200 rounded-md px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-black cursor-pointer"
             >
               <option value="auto">Auto (from Kindle)</option>
               {LANGUAGES.map((lang) => (
@@ -389,7 +389,7 @@ export default function VocabularyTable({
             <select
               value={targetLang}
               onChange={(e) => setTargetLang(e.target.value)}
-              className="text-xs bg-white border border-slate-200 rounded-md px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer"
+              className="text-xs bg-white border border-slate-200 rounded-md px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-black cursor-pointer"
             >
               {LANGUAGES.map((lang) => (
                 <option key={lang.code} value={lang.code}>
@@ -405,7 +405,7 @@ export default function VocabularyTable({
             <select
               value={freqFilter}
               onChange={(e) => setFreqFilter(e.target.value)}
-              className="text-xs bg-white border border-slate-200 rounded-md px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer"
+              className="text-xs bg-white border border-slate-200 rounded-md px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-black cursor-pointer"
             >
               <option value="all">All frequencies</option>
               <option value="common">Common (⭐⭐⭐)</option>
@@ -420,7 +420,7 @@ export default function VocabularyTable({
             <select
               value={selectedBookId || ""}
               onChange={(e) => onSelectBook(e.target.value || null)}
-              className="text-xs bg-white border border-slate-200 rounded-md max-w-xs px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer"
+              className="text-xs bg-white border border-slate-200 rounded-md max-w-xs px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-black cursor-pointer"
             >
               <option value="">All books ({books.length})</option>
               {books.map((b) => (
@@ -435,16 +435,16 @@ export default function VocabularyTable({
 
       {/* Bulk action buttons (Active only on selection) */}
       {selectedWordIds.size > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-blue-50/75 border border-blue-100 rounded-xl animate-fade-in shadow-sm">
-          <div className="text-xs font-semibold text-blue-800 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-blue-600"></span>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-900 text-white border border-slate-800 rounded-xl animate-fade-in shadow-sm">
+          <div className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-white animate-pulse"></span>
             {selectedWordIds.size} words selected for batch edit
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleBulkTranslate}
               disabled={isTranslating}
-              className="inline-flex items-center gap-1.5 h-8 px-3 bg-blue-600 hover:bg-blue-705 disabled:bg-blue-400 text-white font-semibold rounded-md text-xs cursor-pointer transition select-none shadow-sm"
+              className="inline-flex items-center gap-1.5 h-8 px-3 bg-white hover:bg-slate-100 disabled:bg-slate-800 text-slate-900 disabled:text-slate-500 font-semibold rounded-md text-xs cursor-pointer transition select-none shadow-sm"
             >
               {isTranslating ? (
                 <>
@@ -477,7 +477,7 @@ export default function VocabularyTable({
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 animate-fade-in shadow-sm">
           <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
             <span className="flex items-center gap-1.5">
-              <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 text-slate-900 animate-spin" />
               Retrieving translations & definitions ({translationProgress.done}/{translationProgress.total} words)
             </span>
             <div className="flex items-center gap-3">
@@ -493,7 +493,7 @@ export default function VocabularyTable({
           <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
             <div
               style={{ width: `${(translationProgress.done / (translationProgress.total || 1)) * 100}%` }}
-              className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+              className="bg-slate-900 h-1.5 rounded-full transition-all duration-300"
             />
           </div>
         </div>
@@ -510,7 +510,7 @@ export default function VocabularyTable({
                   type="checkbox"
                   checked={filteredWords.length > 0 && selectedWordIds.size === filteredWords.length}
                   onChange={handleToggleSelectAll}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-opacity-0 cursor-pointer h-4 w-4"
+                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 focus:ring-opacity-0 cursor-pointer h-4 w-4"
                 />
               </th>
               {/* Word trigger */}
@@ -519,7 +519,7 @@ export default function VocabularyTable({
                 className="p-4 w-44 font-semibold hover:text-slate-900 cursor-pointer flex-row items-center gap-1 inline-flex select-none"
               >
                 Word
-                {sortField === "word" ? sortOrder === "asc" ? <ChevronUp className="h-3.5 w-3.5 text-blue-600" /> : <ChevronDown className="h-3.5 w-3.5 text-blue-600" /> : null}
+                {sortField === "word" ? sortOrder === "asc" ? <ChevronUp className="h-3.5 w-3.5 text-slate-900" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-900" /> : null}
               </th>
               {/* Frequency Rating */}
               <th
@@ -527,7 +527,7 @@ export default function VocabularyTable({
                 className="p-4 w-36 font-semibold hover:text-slate-900 cursor-pointer flex-row items-center gap-1 inline-flex select-none"
               >
                 Frequency
-                {sortField === "frequency" ? sortOrder === "asc" ? <ChevronUp className="h-3.5 w-3.5 text-blue-600" /> : <ChevronDown className="h-3.5 w-3.5 text-blue-600" /> : null}
+                {sortField === "frequency" ? sortOrder === "asc" ? <ChevronUp className="h-3.5 w-3.5 text-slate-900" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-900" /> : null}
               </th>
               {/* Translation */}
               <th className="p-4 w-44 font-semibold">Translation</th>
@@ -569,14 +569,14 @@ export default function VocabularyTable({
                           type="checkbox"
                           checked={selectedWordIds.has(word.id)}
                           onChange={() => handleToggleSelectWord(word.id)}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-opacity-0 cursor-pointer h-4 w-4"
+                          className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 focus:ring-opacity-0 cursor-pointer h-4 w-4"
                         />
                       </td>
 
                       {/* Word */}
                       <td
                         onClick={() => setExpandedWordId(isExpanded ? null : word.id)}
-                        className="p-4 font-bold text-slate-900 hover:text-blue-600 space-y-0.5"
+                        className="p-4 font-bold text-slate-900 hover:text-slate-950 space-y-0.5"
                       >
                         <div className="flex items-center gap-1.5 truncate">
                           {word.word}
@@ -592,12 +592,12 @@ export default function VocabularyTable({
                         {(() => {
                           const freq = getWordFrequency(word.word, word.stem);
                           return (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
                               freq.rating === "common" 
-                                ? "bg-slate-100 text-slate-700 border border-slate-200" 
+                                ? "bg-slate-100 text-slate-700 border-slate-200" 
                                 : freq.rating === "intermediate" 
-                                ? "bg-blue-50 text-blue-700 border border-blue-100" 
-                                : "bg-amber-50 text-amber-700 border border-amber-100"
+                                ? "bg-slate-800 text-slate-100 border-slate-900" 
+                                : "bg-black text-white border-black"
                             }`}>
                               {Array.from({ length: freq.stars }).map((_, i) => "★").join("")} {freq.label}
                             </span>
@@ -639,7 +639,7 @@ export default function VocabularyTable({
                                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Indexed Form</h4>
                                 <div className="text-xl font-bold text-slate-900">{word.word}</div>
                                 {word.ipa ? (
-                                  <div className="text-xs text-blue-700 font-mono font-bold bg-blue-50 border border-blue-105/10 px-2.5 py-0.5 rounded inline-block">
+                                  <div className="text-xs text-slate-800 font-mono font-bold bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded inline-block">
                                     {word.ipa}
                                   </div>
                                 ) : (
@@ -670,7 +670,7 @@ export default function VocabularyTable({
                                   onClick={() => startEditingWord(word)}
                                   className="mt-2 w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-250 hover:bg-slate-50 text-slate-750 font-bold rounded-lg text-xs transition cursor-pointer select-none"
                                 >
-                                  <Edit2 className="h-3.5 w-3.5 text-blue-600" />
+                                  <Edit2 className="h-3.5 w-3.5 text-slate-900" />
                                   Edit Card Manually
                                 </button>
                               )}
@@ -688,23 +688,23 @@ export default function VocabularyTable({
 
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                      <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Russian Translation</label>
+                                      <label className="text-[10px] font-bold text-slate-455 uppercase tracking-wider block">Russian Translation</label>
                                       <input
                                         type="text"
                                         value={editTranslation}
                                         onChange={(e) => setEditTranslation(e.target.value)}
                                         placeholder="например: вездесущий, повсеместный"
-                                        className="w-full text-xs border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-blue-600 transition"
+                                        className="w-full text-xs border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition"
                                       />
                                     </div>
                                     <div className="space-y-1.5">
-                                      <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">IPA Phonetic Transcription</label>
+                                      <label className="text-[10px] font-bold text-slate-455 uppercase tracking-wider block">IPA Phonetic Transcription</label>
                                       <input
                                         type="text"
                                         value={editIpa}
                                         onChange={(e) => setEditIpa(e.target.value)}
                                         placeholder="например: /juːˈbɪkwɪtəs/"
-                                        className="w-full text-xs font-mono border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-blue-600 transition"
+                                        className="w-full text-xs font-mono border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition"
                                       />
                                     </div>
                                   </div>
@@ -716,7 +716,7 @@ export default function VocabularyTable({
                                       onChange={(e) => setEditExplanation(e.target.value)}
                                       placeholder="Existing or being everywhere at the same time; omnipresent."
                                       rows={2}
-                                      className="w-full text-xs border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-blue-600 transition resize-none"
+                                      className="w-full text-xs border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition resize-none"
                                     />
                                   </div>
 
@@ -727,10 +727,9 @@ export default function VocabularyTable({
                                       onChange={(e) => setEditExample(e.target.value)}
                                       placeholder="Write or paste an illustrative sentence using the word."
                                       rows={2}
-                                      className="w-full text-xs border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-blue-600 transition resize-none"
+                                      className="w-full text-xs border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-lg focus:bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition resize-none"
                                     />
                                   </div>
-
                                   <div className="flex items-center justify-end gap-2 pt-2">
                                     <button
                                       type="button"
@@ -743,7 +742,7 @@ export default function VocabularyTable({
                                     <button
                                       type="button"
                                       onClick={() => saveEditedWord(word)}
-                                      className="inline-flex items-center gap-1 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg cursor-pointer transition select-none shadow-sm"
+                                      className="inline-flex items-center gap-1 px-4 py-1.5 bg-slate-900 hover:bg-black text-white font-bold rounded-lg cursor-pointer transition select-none shadow-sm"
                                     >
                                       <Save className="h-3 w-3" />
                                       Save Card
@@ -758,7 +757,7 @@ export default function VocabularyTable({
                                       {word.translation && (
                                         <div className="space-y-0.5">
                                           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Russian Translation</h4>
-                                          <p className="text-base text-blue-900 font-extrabold">{word.translation}</p>
+                                          <p className="text-base text-slate-950 font-extrabold">{word.translation}</p>
                                         </div>
                                       )}
 
@@ -782,7 +781,7 @@ export default function VocabularyTable({
                                     // --- EMPTY STATE CARD TRIGGER ---
                                     <div className="h-full flex flex-col justify-center items-center py-6 text-center space-y-3.5">
                                       <div className="h-10 w-10 bg-slate-100 border border-slate-200 text-slate-500 rounded flex items-center justify-center shadow-sm">
-                                        <Globe className="h-5 w-5 text-indigo-500" />
+                                        <Globe className="h-5 w-5 text-slate-900" />
                                       </div>
                                       <div className="space-y-1">
                                         <h4 className="font-bold text-slate-900 text-xs">
@@ -799,7 +798,7 @@ export default function VocabularyTable({
                                             setTimeout(() => handleBulkTranslate(), 50);
                                           }}
                                           disabled={isTranslating}
-                                          className="h-8 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded text-xs select-none cursor-pointer transition font-semibold shadow-sm"
+                                          className="h-8 px-4 bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white rounded text-xs select-none cursor-pointer transition font-semibold shadow-sm"
                                         >
                                           Translate & Lookup
                                         </button>

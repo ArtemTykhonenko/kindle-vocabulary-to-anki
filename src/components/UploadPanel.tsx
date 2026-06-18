@@ -108,9 +108,9 @@ export default function UploadPanel({
     <div className="max-w-3xl mx-auto space-y-8 py-4">
       {/* Existing Database Banner */}
       {wordsCount > 0 && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3.5">
-            <div className="h-10 w-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md shrink-0">
+            <div className="h-10 w-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-md shrink-0">
               <Database className="h-5 w-5" />
             </div>
             <div className="text-left">
@@ -122,7 +122,7 @@ export default function UploadPanel({
           </div>
           <button
             onClick={onNavigateToManage}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-705 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow hover:scale-[1.01] shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-black text-white font-bold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow hover:scale-[1.01] shrink-0"
           >
             Manage Vocabulary
             <ArrowRight className="h-3.5 w-3.5" />
@@ -134,11 +134,11 @@ export default function UploadPanel({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Step 1 */}
         <div className="p-5 bg-white border border-slate-200 rounded-xl flex gap-4 text-left shadow-sm hover:shadow-md transition">
-          <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 shadow-sm">
+          <div className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm">
             <Usb className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Step 1</div>
+            <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Step 1</div>
             <h4 className="font-bold text-slate-900 text-sm">Connect your Kindle</h4>
             <p className="text-xs text-slate-500 leading-relaxed">
               Plug your Kindle reader into your computer via a USB cable.
@@ -148,11 +148,11 @@ export default function UploadPanel({
 
         {/* Step 2 */}
         <div className="p-5 bg-white border border-slate-200 rounded-xl flex gap-4 text-left shadow-sm hover:shadow-md transition">
-          <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm">
+          <div className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm">
             <FolderOpen className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Step 2</div>
+            <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Step 2</div>
             <h4 className="font-bold text-slate-900 text-sm">Locate Database File</h4>
             <p className="text-xs text-slate-500 leading-relaxed">
               Open the Kindle root directory and select the database file at:
@@ -173,7 +173,7 @@ export default function UploadPanel({
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
           isDragging
-            ? "border-blue-600 bg-blue-50/30 scale-[0.99] shadow-sm"
+            ? "border-slate-900 bg-slate-100/60 scale-[0.99] shadow-sm"
             : "border-slate-200 hover:border-slate-350 hover:bg-slate-50/55"
         }`}
       >
@@ -187,7 +187,7 @@ export default function UploadPanel({
 
         {isLoading ? (
           <div className="space-y-4">
-            <Loader2 className="h-10 w-10 text-blue-600 animate-spin mx-auto" />
+            <Loader2 className="h-10 w-10 text-slate-900 animate-spin mx-auto" />
             <div className="space-y-1">
               <h3 className="font-semibold text-slate-900">Parsing vocab.db file...</h3>
               <p className="text-slate-500 text-xs">Unpacking local tables and loading lookup stems</p>
@@ -202,8 +202,8 @@ export default function UploadPanel({
               <h3 className="font-semibold text-slate-900">Drag and drop vocab.db here</h3>
               <p className="text-slate-400 text-xs">or click to choose documents folder manually</p>
             </div>
-            <div className="inline-flex items-center text-xs text-blue-700 gap-1 font-semibold bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
-              <Database className="h-3 w-3 text-blue-505" />
+            <div className="inline-flex items-center text-xs text-slate-800 gap-1 font-semibold bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+              <Database className="h-3 w-3 text-slate-600" />
               SQLite Reader Engine
             </div>
           </div>
@@ -242,11 +242,11 @@ export default function UploadPanel({
             </div>
             <div className="space-y-1">
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">New Words</div>
-              <div className="text-2xl font-extrabold text-blue-400">{successInfo.newWords}</div>
+              <div className="text-2xl font-extrabold text-white">{successInfo.newWords}</div>
             </div>
             <div className="space-y-1">
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Duplicates Skipped</div>
-              <div className="text-2xl font-extrabold text-emerald-400">{successInfo.updatedWords}</div>
+              <div className="text-2xl font-extrabold text-slate-300">{successInfo.updatedWords}</div>
             </div>
           </div>
         </div>
