@@ -160,9 +160,8 @@ export default function App() {
 
         {/* Footer credits bar */}
         <footer className="bg-white border-t border-slate-200/60 py-4 mt-auto shrink-0">
-          <div className="max-w-7xl mx-auto px-6 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
-            <span>Kindle to Anki Card Creation Hub</span>
-            <span>© 2026. Processed safely via local IndexedDB.</span>
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 text-center text-[11px] text-slate-400 font-medium">
+            © 2026 Kindle to Anki
           </div>
         </footer>
       </main>

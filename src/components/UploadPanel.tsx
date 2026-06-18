@@ -140,7 +140,7 @@ export default function UploadPanel({
           <div className="space-y-1">
             <h4 className="font-semibold text-slate-900 text-xs">Import Kindle Database File</h4>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Connect your Kindle reader to your computer via USB, locate your dictionary file system, and reload vocabulary words securely.
+              Connect your Kindle reader to your computer via USB.
             </p>
           </div>
         </div>
