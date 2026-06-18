@@ -65,6 +65,42 @@ export async function syncWordsToAnki(
       throw new Error(`Failed to create deck: ${deckName}`);
     }
 
+    // 1.5. Detect the correct modelName (e.g. "Basic" in English Anki, "Простая" in Russian Anki, etc.)
+    let modelName = "Basic";
+    try {
+      const modelNamesRes = await fetch(ANKI_CONNECT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "modelNames",
+          version: 6
+        })
+      });
+      if (modelNamesRes.ok) {
+        const modelNamesJSON = await modelNamesRes.json();
+        if (modelNamesJSON && Array.isArray(modelNamesJSON.result)) {
+          const availableModels = modelNamesJSON.result as string[];
+          const candidates = ["Basic", "Простая", "Einfach", "Básico", "Basic (and reversed card)", "Простая (с обратной карточкой)"];
+          const found = candidates.find(c => availableModels.includes(c));
+          if (found) {
+            modelName = found;
+          } else {
+            // Fallback: look for any name containing common basic words
+            const fuzzyFound = availableModels.find(m => {
+              const lower = m.toLowerCase();
+              return lower.includes("basic") || lower.includes("простая") || lower.includes("einfach") || lower.includes("básico");
+            });
+            if (fuzzyFound) {
+              modelName = fuzzyFound;
+            } else if (availableModels.length > 0) {
+              modelName = availableModels[0]; // Fallback to first available model
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to retrieve available model names from AnkiConnect, falling back to default 'Basic':", err);
+    }
+
     // 2. Format notes
     const notes = words.map((word) => {
       const frontHTML = `
@@ -116,7 +152,7 @@ export async function syncWordsToAnki(
 
       return {
         deckName: deckName,
-        modelName: "Basic",
+        modelName: modelName,
         fields: {
           Front: frontHTML.trim(),
           Back: backHTML.trim(),
