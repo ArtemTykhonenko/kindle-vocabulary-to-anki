@@ -122,21 +122,25 @@ export default function UploadPanel({
         </div>
       )}
 
-      {/* Introduction Heading */}
-      <div className="space-y-1">
-        <h2 className="text-xl font-bold tracking-tight text-slate-900">
-          Import Kindle Database File
-        </h2>
-        <p className="text-slate-500 text-sm">
-          Connect your Kindle reader to your computer via USB, locate your dictionary file system, and reload vocabulary words securely.
-        </p>
-      </div>
-
-      {/* Guide Cards */}
+      {/* Step Guide Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex gap-3">
+        {/* Step 1 */}
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex gap-3 text-left">
           <div className="h-6 w-6 rounded bg-slate-200 text-slate-800 flex items-center justify-center font-bold shrink-0 text-xs shadow-sm">
             1
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-semibold text-slate-900 text-xs">Import Kindle Database File</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Connect your Kindle reader to your computer via USB, locate your dictionary file system, and reload vocabulary words securely.
+            </p>
+          </div>
+        </div>
+
+        {/* Step 2 */}
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex gap-3 text-left">
+          <div className="h-6 w-6 rounded bg-slate-200 text-slate-800 flex items-center justify-center font-bold shrink-0 text-xs shadow-sm">
+            2
           </div>
           <div className="space-y-1">
             <h4 className="font-semibold text-slate-900 text-xs">Locate Database File</h4>
@@ -146,18 +150,6 @@ export default function UploadPanel({
               <code className="bg-slate-250/75 text-slate-705 px-1.5 py-0.5 rounded text-[10px] select-all font-mono font-bold block mt-1.5 border border-slate-200">
                 /system/vocabulary/vocab.db
               </code>
-            </p>
-          </div>
-        </div>
-
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex gap-3">
-          <div className="h-6 w-6 rounded bg-slate-200 text-slate-800 flex items-center justify-center font-bold shrink-0 text-xs shadow-sm">
-            2
-          </div>
-          <div className="space-y-1">
-            <h4 className="font-semibold text-slate-900 text-xs">Sandbox Processed</h4>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Your db gets parsed locally inside your secure sandboxed browser environment. Words lookups remain completely private.
             </p>
           </div>
         </div>

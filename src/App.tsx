@@ -104,32 +104,13 @@ export default function App() {
           />
           <div className="space-y-0.5">
             <h1 className="text-sm font-extrabold tracking-tight text-slate-900">Kindle to Anki</h1>
-            <div className="text-[9px] text-slate-400 font-bold select-none uppercase tracking-wider flex items-center gap-1">
-              <Database className="h-2.5 w-2.5" />
-              Secure Offline Workspace
+            <div className="text-[10px] text-slate-400 font-semibold select-none">
+              Generate flashcards for Anki
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Status indicators */}
-          {loadingStatus ? (
-            <div className="flex h-8 items-center gap-2 rounded-full border border-slate-200 px-3 bg-slate-50 text-[11px] font-medium text-slate-500">
-              <RefreshCw className="h-3 w-3 animate-spin text-slate-400" />
-              <span>Checking...</span>
-            </div>
-          ) : serverOnline ? (
-            <div className="flex h-8 items-center gap-2 rounded-full border border-slate-200 px-3 bg-slate-50 text-[11px] font-medium text-slate-600">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span>Local Proxy Server Ready</span>
-            </div>
-          ) : (
-            <div className="flex h-8 items-center gap-2 rounded-full border border-blue-200 px-3 bg-blue-50/50 text-[11px] font-medium text-blue-700">
-              <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
-              <span>Browser Sandbox Mode</span>
-            </div>
-          )}
-
           {/* Clear Database trigger */}
           {words.length > 0 && (
             <button
