@@ -56,3 +56,5 @@ Users can select the **Word Language** (Source Language) and **Translation Langu
 1. **Adding new APIs**: Make sure all dictionary/translation calls are added to both the local Express proxy in `server.ts` and the direct client-side fallback in `src/utils/api.ts`.
 2. **CORS Restrictions**: If you notice requests getting blocked by CORS in the browser, verify if the proxy route `/api/lookup` is working and being resolved.
 3. **Database Changes**: If you modify the IndexedDB schema, increment `DB_VERSION` in `src/utils/db.ts` and implement migration code in `onupgradeneeded`.
+4. **Git Author**: All repository commits must use the author email `artem.tykhonenko.v@gmail.com` and author name `Artem Tykhonenko`.
+
