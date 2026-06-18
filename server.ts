@@ -33,108 +33,119 @@ async function startServer() {
 
     try {
       const results = [];
-      for (const item of items) {
-        const word = item.word;
-        const context = item.context || "";
+      const CONCURRENCY = 5; // Process 5 words simultaneously to avoid rate-limiting
+      
+      for (let i = 0; i < items.length; i += CONCURRENCY) {
+        const chunk = items.slice(i, i + CONCURRENCY);
         
-        let sl = sourceLang === "auto" ? (item.lang || "en") : sourceLang;
-        const tl = targetLang || "ru";
+        const chunkPromises = chunk.map(async (item) => {
+          const word = item.word;
+          const context = item.context || "";
+          let sl = sourceLang === "auto" ? (item.lang || "en") : sourceLang;
+          const tl = targetLang || "ru";
 
-        let translation = "";
-        let ipa = "";
-        let explanation = "";
-        let example = context;
+          let translation = "";
+          let ipa = "";
+          let explanation = "";
+          let example = context;
 
-        // 1. Fetch translation using Google Translate GTX API
-        try {
-          const transUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(word)}`;
-          const transRes = await fetch(transUrl);
-          if (transRes.ok) {
-            const transData = await transRes.json();
-            if (transData && transData[0] && transData[0][0] && transData[0][0][0]) {
-              translation = transData[0][0][0];
-            }
-          }
-        } catch (err) {
-          console.error(`Google Translate proxy failed for "${word}":`, err);
-        }
-
-        // Fallback translation using MyMemory API
-        if (!translation) {
-          try {
-            const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${sl}|${tl}`;
-            const memRes = await fetch(myMemoryUrl);
-            if (memRes.ok) {
-              const memData = await memRes.json();
-              if (memData && memData.responseData && memData.responseData.translatedText) {
-                translation = memData.responseData.translatedText;
+          // Parallel fetch: Google Translate + Free Dictionary
+          const fetchTranslation = async () => {
+            try {
+              const transUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(word)}`;
+              const transRes = await fetch(transUrl);
+              if (transRes.ok) {
+                const transData = await transRes.json();
+                if (transData && transData[0] && transData[0][0] && transData[0][0][0]) {
+                  return transData[0][0][0];
+                }
               }
+            } catch (err) {
+              console.error(`Google Translate proxy failed for "${word}":`, err);
             }
-          } catch (err) {
-            console.error(`MyMemory Translate proxy failed for "${word}":`, err);
-          }
-        }
 
-        // 2. Fetch definition and IPA using Free Dictionary API (only for English words)
-        if (sl === "en") {
-          try {
-            const dictUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-            const dictRes = await fetch(dictUrl);
-            if (dictRes.ok) {
-              const dictData = await dictRes.json();
-              if (Array.isArray(dictData) && dictData.length > 0) {
-                const entry = dictData[0];
-                
-                // Extract phonetic IPA
-                let foundIpa = entry.phonetic || "";
-                if (!foundIpa && entry.phonetics && Array.isArray(entry.phonetics)) {
-                  const pWithText = entry.phonetics.find((p: any) => p.text);
-                  if (pWithText) foundIpa = pWithText.text;
+            // Fallback to MyMemory
+            try {
+              const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${sl}|${tl}`;
+              const memRes = await fetch(myMemoryUrl);
+              if (memRes.ok) {
+                const memData = await memRes.json();
+                if (memData && memData.responseData && memData.responseData.translatedText) {
+                  return memData.responseData.translatedText;
                 }
-                ipa = foundIpa;
+              }
+            } catch (err) {
+              console.error(`MyMemory Translate proxy failed for "${word}":`, err);
+            }
+            return "";
+          };
 
-                // Extract first available definition
-                if (entry.meanings && Array.isArray(entry.meanings) && entry.meanings.length > 0) {
-                  const firstMeaning = entry.meanings[0];
-                  const partOfSpeech = firstMeaning.partOfSpeech ? `(${firstMeaning.partOfSpeech}) ` : "";
-                  if (firstMeaning.definitions && Array.isArray(firstMeaning.definitions) && firstMeaning.definitions.length > 0) {
-                    explanation = partOfSpeech + firstMeaning.definitions[0].definition;
+          const fetchDictionary = async () => {
+            if (sl !== "en") return { ipa: "", explanation: "", example: "" };
+            try {
+              const dictUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
+              const dictRes = await fetch(dictUrl);
+              if (dictRes.ok) {
+                const dictData = await dictRes.json();
+                if (Array.isArray(dictData) && dictData.length > 0) {
+                  const entry = dictData[0];
+                  let foundIpa = entry.phonetic || "";
+                  if (!foundIpa && entry.phonetics && Array.isArray(entry.phonetics)) {
+                    const pWithText = entry.phonetics.find((p: any) => p.text);
+                    if (pWithText) foundIpa = pWithText.text;
                   }
-                }
 
-                // Extract example
-                let foundExample = "";
-                if (entry.meanings && Array.isArray(entry.meanings)) {
-                  for (const m of entry.meanings) {
-                    if (m.definitions && Array.isArray(m.definitions)) {
-                      const defWithEx = m.definitions.find((d: any) => d.example);
-                      if (defWithEx) {
-                        foundExample = defWithEx.example;
-                        break;
+                  let foundExplanation = "";
+                  if (entry.meanings && Array.isArray(entry.meanings) && entry.meanings.length > 0) {
+                    const firstMeaning = entry.meanings[0];
+                    const partOfSpeech = firstMeaning.partOfSpeech ? `(${firstMeaning.partOfSpeech}) ` : "";
+                    if (firstMeaning.definitions && Array.isArray(firstMeaning.definitions) && firstMeaning.definitions.length > 0) {
+                      foundExplanation = partOfSpeech + firstMeaning.definitions[0].definition;
+                    }
+                  }
+
+                  let foundExample = "";
+                  if (entry.meanings && Array.isArray(entry.meanings)) {
+                    for (const m of entry.meanings) {
+                      if (m.definitions && Array.isArray(m.definitions)) {
+                        const defWithEx = m.definitions.find((d: any) => d.example);
+                        if (defWithEx) {
+                          foundExample = defWithEx.example;
+                          break;
+                        }
                       }
                     }
                   }
-                }
-                if (foundExample) {
-                  example = foundExample;
+                  return { ipa: foundIpa, explanation: foundExplanation, example: foundExample };
                 }
               }
+            } catch (err) {
+              console.error(`Dictionary lookup proxy failed for "${word}":`, err);
             }
-          } catch (err) {
-            console.error(`Dictionary lookup proxy failed for "${word}":`, err);
-          }
-        }
+            return { ipa: "", explanation: "", example: "" };
+          };
 
-        results.push({
-          word,
-          translation: translation || word,
-          ipa: ipa || "",
-          explanation: explanation || "",
-          example: example || context || "",
+          const [transResult, dictResult] = await Promise.all([
+            fetchTranslation(),
+            fetchDictionary()
+          ]);
+
+          return {
+            word,
+            translation: transResult || word,
+            ipa: dictResult.ipa || "",
+            explanation: dictResult.explanation || "",
+            example: dictResult.example || context || "",
+          };
         });
 
-        // Add 150ms delay between words in proxy to protect rate limits
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        const chunkResults = await Promise.all(chunkPromises);
+        results.push(...chunkResults);
+
+        // Small delay between concurrent chunks to protect rate limits
+        if (i + CONCURRENCY < items.length) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
       }
 
       res.json({ success: true, results });

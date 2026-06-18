@@ -153,7 +153,7 @@ export async function translateWordsBatch(
   onProgress: (done: number, total: number) => void,
   signal?: AbortSignal
 ): Promise<ExplanationResponse[]> {
-  const BATCH_SIZE = 5;
+  const BATCH_SIZE = 25; // Send 25 words per HTTP request to server
   const total = wordsToTranslate.length;
   const results: ExplanationResponse[] = [];
 
