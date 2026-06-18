@@ -43,6 +43,22 @@ The application layout is sidebar-free, and relies on a clean, top-down linear s
 - **Manage (`"manage"`)**: The main vocabulary list table. Users can select languages, run bulk translations, edit definitions, and search. A prominent **"Export & Sync"** button at the top right transitions the user to the export page. An **"Import new DB"** button allows uploading a new database.
 - **Export (`"export"`)**: The standalone export center. Displays buttons for direct Anki 1-click synchronization and CSV file download. Features a **"← Back to Vocabulary"** button at the top to return to the list.
 
+### 5. Smart Word Frequency Rating (Non-AI)
+To provide real-life utility suggestions without incurring AI complexity or API key billing:
+- Sourced a curated dataset of the most frequent English words from Google's Trillion Word Corpus.
+- A local utility [frequency.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/frequency.ts) bundles the top 5,000 words.
+- Each imported word is checked against this list (utilizing its stem root form for precision).
+- Words are rated into three categories:
+  - ⭐⭐⭐ **Common**: Top 1,500 words.
+  - ⭐⭐ **Intermediate**: Words ranked between 1,500 and 5,000.
+  - ⭐ **Rare / Advanced**: Words outside the top 5,000.
+- Users can sort the vocabulary table by frequency rank or filter list items by their rating.
+
+### 6. Cancellable Translation Batches
+- Long-running translation batches utilize standard browser `AbortController` / `AbortSignal`.
+- If the user clicks the "Stop" button in the progress bar, the process aborts immediately.
+- To prevent loss of progress, any translations retrieved prior to clicking "Stop" are safely written into IndexedDB before the task terminates.
+
 ---
 
 ## File Structure

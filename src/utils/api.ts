@@ -38,7 +38,8 @@ let serverUnavailable = false;
 async function runClientFallback(
   chunk: { word: string; context?: string; lang?: string }[],
   sourceLang: string,
-  targetLang: string
+  targetLang: string,
+  signal?: AbortSignal
 ): Promise<ExplanationResponse[]> {
   const fallbackResults: ExplanationResponse[] = [];
   for (const item of chunk) {
@@ -134,6 +135,7 @@ async function runClientFallback(
       example: example || item.context || "",
     });
 
+    if (signal?.aborted) break;
     // Gentle delay to protect rate-limits
     await sleep(200);
   }
@@ -148,23 +150,27 @@ export async function translateWordsBatch(
   wordsToTranslate: { word: string; context?: string; lang?: string }[],
   sourceLang: string,
   targetLang: string,
-  onProgress: (done: number, total: number) => void
+  onProgress: (done: number, total: number) => void,
+  signal?: AbortSignal
 ): Promise<ExplanationResponse[]> {
   const BATCH_SIZE = 5;
   const total = wordsToTranslate.length;
   const results: ExplanationResponse[] = [];
 
   for (let i = 0; i < total; i += BATCH_SIZE) {
+    if (signal?.aborted) break;
     const chunk = wordsToTranslate.slice(i, i + BATCH_SIZE);
 
     if (serverUnavailable) {
-      const fallbackResults = await runClientFallback(chunk, sourceLang, targetLang);
+      const fallbackResults = await runClientFallback(chunk, sourceLang, targetLang, signal);
       results.push(...fallbackResults);
       onProgress(Math.min(i + BATCH_SIZE, total), total);
+      if (signal?.aborted) break;
       continue;
     }
 
     try {
+      if (signal?.aborted) break;
       const res = await fetch("/api/lookup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -185,13 +191,16 @@ export async function translateWordsBatch(
       console.warn("Local lookup proxy failed or unavailable, switching immediately to client-side direct translation mode:", error);
       serverUnavailable = true; // Flag server as offline to bypass server fetches in subsequent loops
 
-      const fallbackResults = await runClientFallback(chunk, sourceLang, targetLang);
+      if (signal?.aborted) break;
+      const fallbackResults = await runClientFallback(chunk, sourceLang, targetLang, signal);
       results.push(...fallbackResults);
     }
 
+    if (signal?.aborted) break;
     onProgress(Math.min(i + BATCH_SIZE, total), total);
     
     if (i + BATCH_SIZE < total) {
+      if (signal?.aborted) break;
       await sleep(500);
     }
   }

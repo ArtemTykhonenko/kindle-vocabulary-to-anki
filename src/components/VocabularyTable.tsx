@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Book, Word } from "../types";
+import { getWordFrequency } from "../utils/frequency";
 import {
   Search,
   Filter,
@@ -74,10 +75,15 @@ export default function VocabularyTable({
   // Statistics counts
   const translatedCount = useMemo(() => words.filter((w) => w.translation).length, [words]);
 
+  // Frequency Filter
+  const [freqFilter, setFreqFilter] = useState<string>("all");
+
+  // Abort Controller for translation cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<"lookupTimestamp" | "word">("lookupTimestamp");
+  const [sortField, setSortField] = useState<"lookupTimestamp" | "word" | "frequency">("lookupTimestamp");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Source and Target Language selections
@@ -119,13 +125,13 @@ export default function VocabularyTable({
           w.stem.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (w.bookTitle && w.bookTitle.toLowerCase().includes(searchTerm.toLowerCase()));
 
-        // Status Matching
-        const matchesStatus = statusFilter === "all" || w.status === statusFilter;
+        // Frequency Matching
+        const matchesFreq = freqFilter === "all" || getWordFrequency(w.word, w.stem).rating === freqFilter;
 
         // Book Selection Matching
         const matchesBook = !selectedBookId || w.bookId === selectedBookId;
 
-        return matchesSearch && matchesStatus && matchesBook;
+        return matchesSearch && matchesFreq && matchesBook;
       })
       .sort((a, b) => {
         // Sorting Logic
@@ -133,6 +139,10 @@ export default function VocabularyTable({
           const valA = a.lookupTimestamp || a.wordTimestamp || 0;
           const valB = b.lookupTimestamp || b.wordTimestamp || 0;
           return sortOrder === "desc" ? valB - valA : valA - valB;
+        } else if (sortField === "frequency") {
+          const rankA = getWordFrequency(a.word, a.stem).rank;
+          const rankB = getWordFrequency(b.word, b.stem).rank;
+          return sortOrder === "desc" ? rankB - rankA : rankA - rankB;
         } else {
           const valA = a.word.toLowerCase();
           const valB = b.word.toLowerCase();
@@ -141,7 +151,7 @@ export default function VocabularyTable({
           return 0;
         }
       });
-  }, [words, searchTerm, statusFilter, selectedBookId, sortField, sortOrder]);
+  }, [words, searchTerm, freqFilter, selectedBookId, sortField, sortOrder]);
 
   // Handle mass selection checkboxes
   const handleToggleSelectAll = () => {
@@ -200,6 +210,9 @@ export default function VocabularyTable({
     setIsTranslating(true);
     setTranslationProgress({ done: 0, total: selectedWordIds.size });
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const selectedWords = words.filter((w) => selectedWordIds.has(w.id));
 
     const itemsToTranslate = selectedWords.map((w) => ({
@@ -215,7 +228,8 @@ export default function VocabularyTable({
         targetLang,
         (done, total) => {
           setTranslationProgress({ done, total });
-        }
+        },
+        controller.signal
       );
 
       // Update words in DB
@@ -230,20 +244,39 @@ export default function VocabularyTable({
             ipa: found.ipa || w.ipa,
             explanation: found.explanation || w.explanation,
             example: found.example || w.example,
-            status: "learning" as const, // move into learning list automatically!
           };
         }
         return w;
       });
 
-      await updateWordsBatch(updatedWords);
+      // Filter to only update words that were actually updated (e.g. translated)
+      const actualUpdatedWords = updatedWords.filter(w => {
+        const original = selectedWords.find(orig => orig.id === w.id);
+        return original && (w.translation !== original.translation || w.explanation !== original.explanation);
+      });
+
+      if (actualUpdatedWords.length > 0) {
+        await updateWordsBatch(actualUpdatedWords);
+      }
+      
       setSelectedWordIds(new Set());
       onRefreshWords();
+
+      if (controller.signal.aborted) {
+        alert(`Translation stopped. Saved translations for ${actualUpdatedWords.length} words.`);
+      }
     } catch (err: any) {
       console.error(err);
       alert("Failed to fetch translations: " + (err.message || String(err)));
     } finally {
       setIsTranslating(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleStopTranslation = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
   };
 
@@ -264,27 +297,13 @@ export default function VocabularyTable({
       ipa: editIpa,
       explanation: editExplanation,
       example: editExample,
-      // Change status to learning if not already and translation or definitions are filled
-      status: word.status === "new" && (editTranslation || editExplanation) ? "learning" as const : word.status
     };
     await updateWord(updated);
     setEditingWordId(null);
     onRefreshWords();
   };
 
-  // Toggle single status or edit helper
-  const handleSingleStatusCycle = async (word: Word) => {
-    const nextStatusMap: { [key: string]: "new" | "learning" | "learned" } = {
-      new: "learning",
-      learning: "learned",
-      learned: "new",
-    };
-    const updated = { ...word, status: nextStatusMap[word.status] };
-    await updateWord(updated);
-    onRefreshWords();
-  };
-
-  const handleSort = (field: "lookupTimestamp" | "word") => {
+  const handleSort = (field: "lookupTimestamp" | "word" | "frequency") => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
@@ -380,18 +399,18 @@ export default function VocabularyTable({
             </select>
           </div>
 
-          {/* Status Filter */}
+          {/* Frequency Filter */}
           <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-slate-400" />
+            <Sparkles className="h-3.5 w-3.5 text-slate-400" />
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={freqFilter}
+              onChange={(e) => setFreqFilter(e.target.value)}
               className="text-xs bg-white border border-slate-200 rounded-md px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer"
             >
-              <option value="all">All statuses</option>
-              <option value="new">New words</option>
-              <option value="learning">Learning</option>
-              <option value="learned">Learned</option>
+              <option value="all">All frequencies</option>
+              <option value="common">Common (⭐⭐⭐)</option>
+              <option value="intermediate">Intermediate (⭐⭐)</option>
+              <option value="rare">Rare / Advanced (⭐)</option>
             </select>
           </div>
 
@@ -440,13 +459,7 @@ export default function VocabularyTable({
               )}
             </button>
 
-            <button
-              onClick={() => handleBulkChangeStatus("learned")}
-              className="inline-flex items-center gap-1.5 h-8 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-md text-xs cursor-pointer transition select-none shadow-sm"
-            >
-              <Check className="h-3.5 w-3.5 text-emerald-650" />
-              Mark Learned
-            </button>
+            {/* Removed Status Bulk Action */}
 
             <button
               onClick={handleBulkDelete}
@@ -467,11 +480,19 @@ export default function VocabularyTable({
               <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />
               Retrieving translations & definitions ({translationProgress.done}/{translationProgress.total} words)
             </span>
-            <span className="font-mono font-bold text-slate-700">{Math.round((translationProgress.done / translationProgress.total) * 100)}%</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleStopTranslation}
+                className="px-2 py-1 bg-red-50 hover:bg-red-100 hover:text-red-700 border border-red-200 text-red-650 rounded text-[10px] font-bold cursor-pointer transition select-none"
+              >
+                Stop
+              </button>
+              <span className="font-mono font-bold text-slate-700">{Math.round((translationProgress.done / (translationProgress.total || 1)) * 100)}%</span>
+            </div>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
             <div
-              style={{ width: `${(translationProgress.done / translationProgress.total) * 100}%` }}
+              style={{ width: `${(translationProgress.done / (translationProgress.total || 1)) * 100}%` }}
               className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
             />
           </div>
@@ -500,12 +521,18 @@ export default function VocabularyTable({
                 Word
                 {sortField === "word" ? sortOrder === "asc" ? <ChevronUp className="h-3.5 w-3.5 text-blue-600" /> : <ChevronDown className="h-3.5 w-3.5 text-blue-600" /> : null}
               </th>
+              {/* Frequency Rating */}
+              <th
+                onClick={() => handleSort("frequency")}
+                className="p-4 w-36 font-semibold hover:text-slate-900 cursor-pointer flex-row items-center gap-1 inline-flex select-none"
+              >
+                Frequency
+                {sortField === "frequency" ? sortOrder === "asc" ? <ChevronUp className="h-3.5 w-3.5 text-blue-600" /> : <ChevronDown className="h-3.5 w-3.5 text-blue-600" /> : null}
+              </th>
               {/* Translation */}
               <th className="p-4 w-44 font-semibold">Translation</th>
               {/* Kindle Context sentence */}
               <th className="p-4 font-semibold">Context / Phrase</th>
-              {/* Core Status indicator */}
-              <th className="p-4 w-32 font-semibold text-center">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -527,23 +554,6 @@ export default function VocabularyTable({
               filteredWords.map((word) => {
                 const book = word.bookId ? booksMap.get(word.bookId) : null;
                 const isExpanded = expandedWordId === word.id;
-                const progressStateMap = {
-                  new: {
-                    label: "New",
-                    badge: "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/50",
-                    bullet: "bg-slate-400",
-                  },
-                  learning: {
-                    label: "Learning",
-                    badge: "bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100/50",
-                    bullet: "bg-indigo-500",
-                  },
-                  learned: {
-                    label: "Learned",
-                    badge: "bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100/50",
-                    bullet: "bg-emerald-500",
-                  },
-                };
 
                 return (
                   <React.Fragment key={word.id}>
@@ -574,6 +584,27 @@ export default function VocabularyTable({
                         {word.ipa && <div className="text-[10px] text-slate-400 font-mono font-medium">{word.ipa}</div>}
                       </td>
 
+                      {/* Frequency Rating */}
+                      <td
+                        onClick={() => setExpandedWordId(isExpanded ? null : word.id)}
+                        className="p-4 select-none"
+                      >
+                        {(() => {
+                          const freq = getWordFrequency(word.word, word.stem);
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                              freq.rating === "common" 
+                                ? "bg-slate-100 text-slate-700 border border-slate-200" 
+                                : freq.rating === "intermediate" 
+                                ? "bg-blue-50 text-blue-700 border border-blue-100" 
+                                : "bg-amber-50 text-amber-700 border border-amber-100"
+                            }`}>
+                              {Array.from({ length: freq.stars }).map((_, i) => "★").join("")} {freq.label}
+                            </span>
+                          );
+                        })()}
+                      </td>
+
                       {/* Translation */}
                       <td
                         onClick={() => setExpandedWordId(isExpanded ? null : word.id)}
@@ -594,19 +625,6 @@ export default function VocabularyTable({
                         title={word.context || "No context found"}
                       >
                         {word.context || <span className="opacity-40">-</span>}
-                      </td>
-
-                      {/* Status indicator */}
-                      <td className="p-4 text-center select-none" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleSingleStatusCycle(word)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold cursor-pointer transition uppercase tracking-wider ${
-                            progressStateMap[word.status].badge
-                          }`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${progressStateMap[word.status].bullet}`} />
-                          {progressStateMap[word.status].label}
-                        </button>
                       </td>
                     </tr>
 
