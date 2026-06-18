@@ -26,7 +26,7 @@ graph TD
 To ensure the app remains fully open-source and free, all translation and dictionary lookup capabilities rely on open-access keyless APIs:
 - **Translation**: Uses Google Translate's public `gtx` endpoint (`https://translate.googleapis.com/translate_a/single?client=gtx`). If that fails, it falls back to MyMemory Translation API (`https://api.mymemory.translated.net/get`).
 - **Dictionary Lookups**: English words are enriched with phonetic IPA transcriptions, dictionary definitions, and usage examples from the Free Dictionary API (`https://api.dictionaryapi.dev/api/v2/entries/en`).
-- **Resilience**: The app first tries to proxy requests through the local Express server to bypass browser CORS policies. If the server is unreachable, it falls back to direct browser fetches with rate-limiting delays.
+- **Resilience & Static Mode**: The app first tries to check if the local server is reachable at startup. If the server is offline or not deployed (static-only hosting), it immediately locks the frontend into `serverUnavailable` client-side lookup mode. This avoids useless network 404 proxy calls and performs direct browser fetches for translations.
 
 ### 2. Multi-Language Support
 Users can select the **Word Language** (Source Language) and **Translation Language** (Target Language) in the frontend.

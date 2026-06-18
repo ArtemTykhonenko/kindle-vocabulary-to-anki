@@ -23,6 +23,7 @@ export async function getBackendStatus(): Promise<{ status: string; mode: string
     return await res.json();
   } catch (err) {
     console.warn("Backend server not detected. Switching frontend to pure offline sandboxed mode.");
+    serverUnavailable = true; // Set to true immediately to skip server-side lookup queries
     return { status: "error", mode: "offline" };
   }
 }

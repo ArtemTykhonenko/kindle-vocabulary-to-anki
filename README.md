@@ -22,3 +22,17 @@ A beautiful, local-first web utility to extract and import your Kindle Vocabular
    npm run dev
    ```
 3. Open your browser and navigate to `http://localhost:3000` to start sync processes!
+
+## Static Hosting (Serverless / Static Deployment)
+
+This application can run **completely serverless/client-side** in your browser without any running Node backend. 
+
+To deploy to static hosting (GitHub Pages, Vercel, Netlify, Cloudflare Pages, etc.):
+
+1. Build the production assets:
+   ```bash
+   npm run build
+   ```
+2. Upload/deploy the contents of the `dist/` directory directly to your static hosting provider.
+3. The frontend will automatically detect the absence of the backend proxy and perform direct, sandboxed client-side fetches for translations and definitions.
+
