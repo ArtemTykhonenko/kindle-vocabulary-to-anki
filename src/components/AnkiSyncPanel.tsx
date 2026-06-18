@@ -17,15 +17,21 @@ import {
   Award,
   Sparkles,
   Layers,
-  ArrowRight
+  ArrowRight,
+  ArrowLeft
 } from "lucide-react";
 
 interface AnkiSyncPanelProps {
   words: Word[];
   onRefreshWords: () => void;
+  onNavigateToManage: () => void;
 }
 
-export default function AnkiSyncPanel({ words, onRefreshWords }: AnkiSyncPanelProps) {
+export default function AnkiSyncPanel({
+  words,
+  onRefreshWords,
+  onNavigateToManage,
+}: AnkiSyncPanelProps) {
   const [ankiStatus, setAnkiStatus] = useState<AnkiStatus>({ online: false });
   const [checkingAnki, setCheckingAnki] = useState(false);
   const [deckName, setDeckName] = useState("Kindle Vocabulary");
@@ -109,7 +115,19 @@ export default function AnkiSyncPanel({ words, onRefreshWords }: AnkiSyncPanelPr
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 animate-fade-in">
+    <div className="space-y-6 py-2">
+      {/* Back button */}
+      <div>
+        <button
+          onClick={onNavigateToManage}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 text-slate-550" />
+          <span>Back to Vocabulary</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
       {/* LEFT COLUMN: Controls & Sync Panel */}
       <div className="md:col-span-2 space-y-6">
         <div className="space-y-1">
@@ -314,6 +332,7 @@ export default function AnkiSyncPanel({ words, onRefreshWords }: AnkiSyncPanelPr
             </span>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

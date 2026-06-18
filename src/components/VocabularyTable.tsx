@@ -26,7 +26,8 @@ import {
   Edit2,
   Save,
   X,
-  Globe
+  Globe,
+  ArrowRight
 } from "lucide-react";
 import { translateWordsBatch } from "../utils/api";
 import { updateWordsBatch, updateWord } from "../utils/db";
@@ -56,6 +57,8 @@ interface VocabularyTableProps {
   onSelectBook: (bookId: string | null) => void;
   onRefreshWords: () => void;
   serverOnline: boolean;
+  onNavigateToExport: () => void;
+  onNavigateToUpload: () => void;
 }
 
 export default function VocabularyTable({
@@ -64,8 +67,13 @@ export default function VocabularyTable({
   selectedBookId,
   onSelectBook,
   onRefreshWords,
-  serverOnline
+  serverOnline,
+  onNavigateToExport,
+  onNavigateToUpload,
 }: VocabularyTableProps) {
+  // Statistics counts
+  const translatedCount = useMemo(() => words.filter((w) => w.translation).length, [words]);
+
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -286,7 +294,43 @@ export default function VocabularyTable({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Page Header and Top Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200/60">
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold tracking-tight text-slate-900 font-sans">Vocabulary Manager</h2>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+            <span className="flex items-center gap-1">
+              <Database className="h-3.5 w-3.5 text-blue-500" />
+              <b>{words.length}</b> total words
+            </span>
+            <span className="flex items-center gap-1">
+              <BookOpen className="h-3.5 w-3.5 text-indigo-500" />
+              <b>{books.length}</b> ebooks
+            </span>
+            <span className="flex items-center gap-1">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+              <b>{translatedCount}</b> ready to sync
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onNavigateToUpload}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow"
+          >
+            Import new DB
+          </button>
+          <button
+            onClick={onNavigateToExport}
+            className="inline-flex items-center gap-1.5 px-4.5 py-2 bg-blue-600 hover:bg-blue-705 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow hover:scale-[1.01]"
+          >
+            Export & Sync
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
       {/* Table search & quick controls panel */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
         {/* Search Input */}

@@ -11,9 +11,15 @@ import { Book, Word } from "../types";
 
 interface UploadPanelProps {
   onImportComplete: (words: Word[], books: Book[]) => void;
+  wordsCount: number;
+  onNavigateToManage: () => void;
 }
 
-export default function UploadPanel({ onImportComplete }: UploadPanelProps) {
+export default function UploadPanel({
+  onImportComplete,
+  wordsCount,
+  onNavigateToManage,
+}: UploadPanelProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +98,30 @@ export default function UploadPanel({ onImportComplete }: UploadPanelProps) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 py-4">
+      {/* Existing Database Banner */}
+      {wordsCount > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="h-10 w-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md shrink-0">
+              <Database className="h-5 w-5" />
+            </div>
+            <div className="text-left">
+              <h3 className="font-bold text-slate-900 text-sm">Workspace Database Active</h3>
+              <p className="text-xs text-slate-550">
+                You currently have <b>{wordsCount}</b> words saved locally. You can sync or manage them directly.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onNavigateToManage}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-705 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow hover:scale-[1.01] shrink-0"
+          >
+            Manage Vocabulary
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Introduction Heading */}
       <div className="space-y-1">
         <h2 className="text-xl font-bold tracking-tight text-slate-900">

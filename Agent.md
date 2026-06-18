@@ -37,6 +37,12 @@ Users can select the **Word Language** (Source Language) and **Translation Langu
 - **SQL.js**: The Kindle `vocab.db` database is loaded in-memory inside the browser and parsed using `sql-wasm.js` fetched from CDNJS. No databases are uploaded to external servers.
 - **IndexedDB**: Persistent local state (books and words) is saved in the browser's IndexedDB database (`KindleAnkiExporterDB`) with a simple object store.
 
+### 4. Sidebar-Free Layout & Screen Flow
+The application layout is sidebar-free, and relies on a clean, top-down linear screen state flow defined in `src/App.tsx` via `currentScreen`:
+- **Upload (`"upload"`)**: The entry landing page featuring a centered drag-and-drop box for importing `vocab.db`. If a database is already loaded in IndexedDB, it displays a shortcut banner: `"Manage Vocabulary"`.
+- **Manage (`"manage"`)**: The main vocabulary list table. Users can select languages, run bulk translations, edit definitions, and search. A prominent **"Export & Sync"** button at the top right transitions the user to the export page. An **"Import new DB"** button allows uploading a new database.
+- **Export (`"export"`)**: The standalone export center. Displays buttons for direct Anki 1-click synchronization and CSV file download. Features a **"← Back to Vocabulary"** button at the top to return to the list.
+
 ---
 
 ## File Structure
