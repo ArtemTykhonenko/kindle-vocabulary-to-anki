@@ -516,18 +516,34 @@ export default function VocabularyTable({
               {/* Word trigger */}
               <th
                 onClick={() => handleSort("word")}
-                className="p-4 w-44 font-semibold hover:text-slate-900 cursor-pointer flex-row items-center gap-1 inline-flex select-none"
+                className="p-4 w-44 font-semibold hover:text-slate-900 cursor-pointer select-none"
               >
-                Word
-                {sortField === "word" ? sortOrder === "asc" ? <ChevronUp className="h-3.5 w-3.5 text-slate-900" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-900" /> : null}
+                <div className="inline-flex items-center gap-1">
+                  Word
+                  {sortField === "word" ? (
+                    sortOrder === "asc" ? (
+                      <ChevronUp className="h-3.5 w-3.5 text-slate-900" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-900" />
+                    )
+                  ) : null}
+                </div>
               </th>
               {/* Frequency Rating */}
               <th
                 onClick={() => handleSort("frequency")}
-                className="p-4 w-36 font-semibold hover:text-slate-900 cursor-pointer flex-row items-center gap-1 inline-flex select-none"
+                className="p-4 w-36 font-semibold hover:text-slate-900 cursor-pointer select-none"
               >
-                Frequency
-                {sortField === "frequency" ? sortOrder === "asc" ? <ChevronUp className="h-3.5 w-3.5 text-slate-900" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-900" /> : null}
+                <div className="inline-flex items-center gap-1">
+                  Frequency
+                  {sortField === "frequency" ? (
+                    sortOrder === "asc" ? (
+                      <ChevronUp className="h-3.5 w-3.5 text-slate-900" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-900" />
+                    )
+                  ) : null}
+                </div>
               </th>
               {/* Translation */}
               <th className="p-4 w-44 font-semibold">Translation</th>

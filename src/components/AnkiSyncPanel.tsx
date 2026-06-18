@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { Word, Book } from "../types";
 import { checkAnkiConnect, syncWordsToAnki, AnkiStatus } from "../utils/ankiConnect";
-import { exportToCsv } from "../utils/csv";
+import { exportToTsvStyled } from "../utils/csv";
 import {
   FileSpreadsheet,
   RefreshCw,
@@ -18,10 +18,8 @@ import {
   Sparkles,
   Layers,
   ArrowRight,
-  ArrowLeft,
-  Download
+  ArrowLeft
 } from "lucide-react";
-import { exportUpdatedKindleDb } from "../utils/sqliteParser";
 
 interface AnkiSyncPanelProps {
   words: Word[];
@@ -106,44 +104,14 @@ export default function AnkiSyncPanel({
     }
   };
 
-  // Trigger CSV export of prepared cards
-  const handleDownloadCsv = () => {
+  // Trigger TXT export of styled HTML fields (tab-separated)
+  const handleDownloadTxtStyled = () => {
     if (readyWords.length === 0) {
-      if (!confirm("You have 0 words translated. Downloading CSV now will output empty cards. Proceed?")) {
+      if (!confirm("You have 0 words translated. Downloading TXT now will output empty cards. Proceed?")) {
         return;
       }
     }
-    exportToCsv(readyWords);
-  };
-
-  const [isExportingDb, setIsExportingDb] = useState(false);
-
-  const handleDownloadKindleDb = async () => {
-    setIsExportingDb(true);
-    try {
-      const binary = await exportUpdatedKindleDb();
-      if (!binary) {
-        alert(
-          "No raw Kindle database backup found in your browser storage. To enable database downloads, please re-import your vocab.db file on the home page."
-        );
-        return;
-      }
-
-      const blob = new Blob([binary], { type: "application/x-sqlite3" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "vocab.db";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err: any) {
-      console.error(err);
-      alert("Failed to rebuild Kindle database: " + (err.message || String(err)));
-    } finally {
-      setIsExportingDb(false);
-    }
+    exportToTsvStyled(readyWords);
   };
 
   return (
@@ -165,7 +133,7 @@ export default function AnkiSyncPanel({
         <div className="space-y-1">
           <h2 className="text-xl font-bold tracking-tight text-slate-900">Anki Sync & Export Center</h2>
           <p className="text-slate-500 text-sm">
-            Transfer prepared vocabulary words either via a standalone CSV import file, or directly to your offline Anki Desktop application.
+            Transfer prepared vocabulary words using beautiful card designs either directly to your local Anki Desktop or download a styled TXT file.
           </p>
         </div>
 
@@ -245,54 +213,38 @@ export default function AnkiSyncPanel({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              {/* Export to local AnkiConnect */}
-              <button
-                onClick={handleSyncToAnkiConnect}
-                disabled={isSyncing || readyWords.length === 0}
-                className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-slate-900 hover:bg-black disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
-              >
-                {isSyncing ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin text-slate-400" />
-                    Synchronizing...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
-                    1-Click Sync to Anki
-                  </>
-                )}
-              </button>
+            <div className="pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Export to local AnkiConnect */}
+                <button
+                  onClick={handleSyncToAnkiConnect}
+                  disabled={isSyncing || readyWords.length === 0}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-slate-900 hover:bg-black disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                >
+                  {isSyncing ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin text-slate-400" />
+                      Synchronizing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4" />
+                      1-Click Sync to Anki
+                    </>
+                  )}
+                </button>
 
-              {/* Download CSV */}
-              <button
-                onClick={handleDownloadCsv}
-                className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer select-none"
-              >
-                <FileSpreadsheet className="h-4 w-4 text-slate-600" />
-                Download CSV Deck
-              </button>
-
-              {/* Download Kindle vocab.db */}
-              <button
-                onClick={handleDownloadKindleDb}
-                disabled={isExportingDb}
-                className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer select-none"
-                title="Download modified vocab.db to sync deletions back to Kindle"
-              >
-                {isExportingDb ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin text-slate-400" />
-                    Generating DB...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 text-slate-600" />
-                    Download Kindle DB
-                  </>
-                )}
-              </button>
+                {/* Download Styled TXT */}
+                <button
+                  onClick={handleDownloadTxtStyled}
+                  disabled={readyWords.length === 0}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 h-11 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer select-none"
+                  title="Download tab-separated TXT with beautiful styled HTML cards (auto-configured for Anki)"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-white" />
+                  Download File for Anki
+                </button>
+              </div>
             </div>
           </div>
 

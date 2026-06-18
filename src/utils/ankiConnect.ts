@@ -4,6 +4,7 @@
  */
 
 import { Word } from "../types";
+import { renderFront, renderBack } from "./cardTemplates";
 
 const ANKI_CONNECT_URL = "http://127.0.0.1:8765";
 
@@ -103,59 +104,12 @@ export async function syncWordsToAnki(
 
     // 2. Format notes
     const notes = words.map((word) => {
-      const frontHTML = `
-        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-          <div style="font-size: 2.2em; font-weight: bold; color: #1e293b; margin-bottom: 8px;">${word.word}</div>
-          ${word.ipa ? `<div style="font-size: 1.2em; color: #64748b; font-family: 'Courier New', Courier, monospace;">${word.ipa}</div>` : ""}
-          ${word.bookTitle ? `<div style="font-size: 0.8em; color: #94a3b8; margin-top: 15px; font-style: italic;">Book: ${word.bookTitle}</div>` : ""}
-        </div>
-      `;
-
-      const backHTML = `
-        <div style="font-family: Arial, sans-serif; text-align: center; padding: 10px; max-width: 500px; margin: 0 auto;">
-          <div style="font-size: 1.8em; font-weight: bold; color: #2563eb; margin-bottom: 20px;">${word.translation || "No translation"}</div>
-          
-          ${
-            word.context
-              ? `
-            <div style="background-color: #f8fafc; border-left: 3px solid #cbd5e1; padding: 12px; margin: 15px 0; text-align: left; border-radius: 4px;">
-              <div style="font-size: 0.85em; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; tracking-wide: 0.05em;">Original Kindle Context:</div>
-              <div style="font-size: 1em; color: #334155; font-style: italic; line-height: 1.4;">${word.context}</div>
-            </div>
-            `
-              : ""
-          }
-
-          ${
-            word.explanation
-              ? `
-            <div style="margin: 15px 0; text-align: left;">
-              <span style="font-weight: bold; color: #1e293b; font-size: 0.9em; text-transform: uppercase;">Definition:</span>
-              <p style="font-size: 1.05em; color: #334155; margin: 4px 0 0 0; line-height: 1.4;">${word.explanation}</p>
-            </div>
-            `
-              : ""
-          }
-
-          ${
-            word.example
-              ? `
-            <div style="margin: 15px 0; text-align: left; background-color: #f0fdf4; border: 1px dashed #bbf7d0; padding: 12px; border-radius: 4px;">
-              <span style="font-weight: bold; color: #166534; font-size: 0.85em; text-transform: uppercase;">Usage Example:</span>
-              <p style="font-size: 1.05em; color: #14532d; margin: 4px 0 0 0; line-height: 1.4;">${word.example}</p>
-            </div>
-            `
-              : ""
-          }
-        </div>
-      `;
-
       return {
         deckName: deckName,
         modelName: modelName,
         fields: {
-          Front: frontHTML.trim(),
-          Back: backHTML.trim(),
+          Front: renderFront(word).trim(),
+          Back: renderBack(word).trim(),
         },
         tags: ["kindle_vocab", "kindle_vocab_to_anki"],
       };

@@ -6,7 +6,7 @@ A beautiful, local-first web utility to extract and import your Kindle Vocabular
 
 - **100% Offline SQLite Engine**: Your database is parsed client-side using WebAssembly (SQL.js). No databases are uploaded.
 - **AI-Free Lookup Proxy**: Translation uses public keyless services (Google Translate + MyMemory) and dictionary definitions (Free Dictionary API).
-- **Direct Anki Integration**: Sync cards directly to Anki Desktop using the AnkiConnect add-on, or export as CSV.
+- **Direct Anki Integration**: Sync cards directly to Anki Desktop using the AnkiConnect add-on, or export as tab-separated TXT.
 - **Multi-Language Selectors**: Select word source languages and target translation languages instantly.
 
 ## Run Locally

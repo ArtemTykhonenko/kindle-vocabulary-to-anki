@@ -18,7 +18,7 @@ graph TD
     E -->|Translation text| G[Enriched Word Data]
     F -->|IPA, English Definition, Examples| G
     G -->|IndexedDB update| B
-    B -->|CSV Export| H[Download CSV file]
+    B -->|TXT Export| H[Download TXT file (Anki)]
     B -->|AnkiConnect API| I[Anki Desktop App]
 ```
 
@@ -41,7 +41,7 @@ Users can select the **Word Language** (Source Language) and **Translation Langu
 The application layout is sidebar-free, and relies on a clean, top-down linear screen state flow defined in `src/App.tsx` via `currentScreen`:
 - **Upload (`"upload"`)**: The entry landing page featuring a centered drag-and-drop box for importing `vocab.db`. If a database is already loaded in IndexedDB, it displays a shortcut banner: `"Manage Vocabulary"`.
 - **Manage (`"manage"`)**: The main vocabulary list table. Users can select languages, run bulk translations, edit definitions, and search. A prominent **"Export & Sync"** button at the top right transitions the user to the export page. An **"Import new DB"** button allows uploading a new database.
-- **Export (`"export"`)**: The standalone export center. Displays buttons for direct Anki 1-click synchronization and CSV file download. Features a **"← Back to Vocabulary"** button at the top to return to the list.
+- **Export (`"export"`)**: The standalone export center. Displays buttons for direct Anki 1-click synchronization and tab-separated TXT file downloads. Features a **\"← Back to Vocabulary\"** button at the top to return to the list.
 
 ### 5. Smart Word Frequency Rating (Non-AI)
 To provide real-life utility suggestions without incurring AI complexity or API key billing:
@@ -75,7 +75,7 @@ To synchronize word deletions back to the Kindle reader:
 - [src/utils/db.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/db.ts): IndexedDB wrapper facilitating local operations (saving words/books, updating learning statuses).
 - [src/utils/api.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/api.ts): API interface that queries the server-side proxy `/api/lookup` or falls back to direct client-side fetch calls.
 - [src/utils/ankiConnect.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/ankiConnect.ts): Handles handshakes and synchronization payloads pushed directly into Anki Desktop.
-- [src/utils/csv.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/csv.ts): CSV export script utilizing UTF-8 BOM encoding for proper international character parsing in spreadsheets.
+- [src/utils/csv.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/csv.ts): TSV (.txt) export script utilizing UTF-8 BOM encoding for proper international character parsing and seamless Anki import with auto-config headers.
 - [src/components/VocabularyTable.tsx](file:///d:/projects/kindle-vocabulary-to-anki/src/components/VocabularyTable.tsx): Core word manager view, detailing statuses (New, Learning, Learned) and containing translation selectors.
 
 ---
