@@ -97,11 +97,13 @@ export default function App() {
       {/* TOP NAVBAR */}
       <header className="flex h-16 items-center justify-between border-b border-slate-200 px-6 sm:px-8 bg-white shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-3">
-          <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white text-sm shadow-sm select-none">
-            K
-          </div>
+          <img
+            src="/logo.png"
+            alt="Kindle to Anki Logo"
+            className="h-8 w-8 rounded-lg object-cover shadow-sm select-none"
+          />
           <div className="space-y-0.5">
-            <h1 className="text-sm font-extrabold tracking-tight text-slate-900">KindleSync</h1>
+            <h1 className="text-sm font-extrabold tracking-tight text-slate-900">Kindle to Anki</h1>
             <div className="text-[9px] text-slate-400 font-bold select-none uppercase tracking-wider flex items-center gap-1">
               <Database className="h-2.5 w-2.5" />
               Secure Offline Workspace
