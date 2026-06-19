@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <b>Русский</b>
+  <a href="README.md">English</a> | <a href="README.uk.md">Українська</a> | <b>Русский</b>
 </p>
 
 ---
