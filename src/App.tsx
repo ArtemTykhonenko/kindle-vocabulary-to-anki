@@ -171,14 +171,14 @@ export default function App() {
         <div className="flex items-center gap-3">
           {/* GitHub Link */}
           <a
-            href="https://github.com/ArtemTykhonenko/kindle-vocabulary-to-anki"
+            href="https://github.com/ArtemTykhonenko/kindle-vocabulary-to-anki/blob/main/README.md"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-md transition text-xs font-semibold select-none cursor-pointer border border-transparent"
-            title="View on GitHub"
+            title="View README on GitHub"
           >
             <Github className="h-4 w-4" />
-            <span className="hidden sm:inline">GitHub</span>
+            <span className="hidden sm:inline">README</span>
           </a>
 
           {/* Clear Database trigger */}
