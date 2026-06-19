@@ -21,10 +21,20 @@ import { getBackendStatus } from "./utils/api";
 import UploadPanel from "./components/UploadPanel";
 import VocabularyTable from "./components/VocabularyTable";
 import AnkiSyncPanel from "./components/AnkiSyncPanel";
+import ImportPreviewPanel from "./components/ImportPreviewPanel";
 
 export default function App() {
-  // Screen navigation state: "upload" | "manage" | "export"
-  const [currentScreen, setCurrentScreen] = useState<"upload" | "manage" | "export">("upload");
+  // Screen navigation state: "upload" | "preview" | "manage" | "export"
+  const [currentScreen, setCurrentScreen] = useState<"upload" | "preview" | "manage" | "export">("upload");
+
+  // Temporary staging state for preview
+  const [stagedKindleData, setStagedKindleData] = useState<{
+    words: Word[];
+    books: Book[];
+    arrayBuffer: ArrayBuffer | null;
+  } | null>(null);
+
+  const [stagedAnkiWords, setStagedAnkiWords] = useState<Set<string> | null>(null);
 
   // Words and Books states
   const [words, setWords] = useState<Word[]>([]);
@@ -76,20 +86,67 @@ export default function App() {
     init();
   }, []);
 
-  const handleImportComplete = (importedWords: Word[], importedBooks: Book[]) => {
-    loadDataFromDb();
-    setCurrentScreen("manage"); // move to management screen after successful parsing!
+  const handleContinueToPreview = (
+    kindleData: { words: Word[]; books: Book[]; arrayBuffer: ArrayBuffer | null },
+    ankiWords: Set<string> | null
+  ) => {
+    setStagedKindleData(kindleData);
+    setStagedAnkiWords(ankiWords);
+    setCurrentScreen("preview");
+  };
+
+  const handleConfirmImport = async (
+    selectedWords: Word[],
+    selectedBooks: Book[],
+    rawDb: ArrayBuffer | null
+  ) => {
+    try {
+      const { saveBooks, saveWords, saveRawDbFile } = await import("./utils/db");
+      
+      // 1. Save books
+      await saveBooks(selectedBooks);
+
+      // 2. Save words checking duplicates elegantly
+      await saveWords(selectedWords);
+
+      // 3. Save raw database binary for export back to Kindle
+      if (rawDb) {
+        await saveRawDbFile(rawDb);
+      }
+
+      // Reload database values and navigate to manage screen
+      await loadDataFromDb();
+      setCurrentScreen("manage");
+      
+      // Clear staging states
+      setStagedKindleData(null);
+      setStagedAnkiWords(null);
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to save imported vocabulary to database: " + (err.message || String(err)));
+    }
+  };
+
+  const handleCancelImport = () => {
+    setStagedKindleData(null);
+    setStagedAnkiWords(null);
+    setCurrentScreen("upload");
   };
 
   const handleClearData = async () => {
     if (!confirm("Are you sure you want to delete all local data? This action will wipe your local vocabulary builder storage and is irreversible.")) {
       return;
     }
-    await clearAllLocalData();
-    setWords([]);
-    setBooks([]);
-    setSelectedBookId(null);
-    setCurrentScreen("upload");
+    try {
+      await clearAllLocalData();
+      setWords([]);
+      setBooks([]);
+      setSelectedBookId(null);
+      setCurrentScreen("upload");
+    } catch (err: any) {
+      console.error("Failed to reset database:", err);
+      alert("Failed to reset database: " + (err.message || String(err)));
+    }
   };
 
   return (
@@ -130,9 +187,20 @@ export default function App() {
         <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8">
           {currentScreen === "upload" && (
             <UploadPanel 
-              onImportComplete={handleImportComplete} 
+              onContinue={handleContinueToPreview} 
               wordsCount={words.length}
               onNavigateToManage={() => setCurrentScreen("manage")}
+            />
+          )}
+
+          {currentScreen === "preview" && stagedKindleData && (
+            <ImportPreviewPanel
+              words={stagedKindleData.words}
+              books={stagedKindleData.books}
+              rawDb={stagedKindleData.arrayBuffer}
+              ankiWords={stagedAnkiWords}
+              onConfirmImport={handleConfirmImport}
+              onCancel={handleCancelImport}
             />
           )}
 

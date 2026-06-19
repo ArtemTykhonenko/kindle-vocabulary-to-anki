@@ -6,7 +6,7 @@
 import { Book, Word } from "../types";
 
 const DB_NAME = "KindleAnkiExporterDB";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbInstance: IDBDatabase | null = null;
 
