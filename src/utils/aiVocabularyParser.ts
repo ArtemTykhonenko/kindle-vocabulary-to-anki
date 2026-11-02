@@ -22,7 +22,7 @@ export function parseAiVocabularyJson(json: string): Word[] {
   try {
     parsed = JSON.parse(json);
   } catch {
-    throw new Error("The file is not valid JSON. Check for missing commas or quotation marks.");
+    throw new Error("The text is not valid JSON. Check for missing commas or quotation marks.");
   }
 
   const entries = Array.isArray(parsed)
