@@ -214,16 +214,18 @@ export default function ImportPreviewPanel({
       <div className="space-y-1 text-left font-sans">
         <h2 className="text-xl font-bold tracking-tight text-slate-900">Import Preview & Reconciliation</h2>
         <p className="text-slate-500 text-sm">
-          Review words extracted from your Kindle database. We matched them against your Anki file to filter duplicates.
+          {rawDb
+            ? "Review words extracted from your Kindle database. We matched them against your Anki file to filter duplicates."
+            : "Review vocabulary prepared in JSON. We matched it against your Anki file to filter duplicates."}
         </p>
       </div>
 
       {/* Stats Dash Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 font-sans">
         <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-left flex flex-col justify-between">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total in Kindle</div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{rawDb ? "Total in Kindle" : "Total in JSON"}</div>
           <div className="text-2xl font-extrabold text-slate-900 mt-1">{totalCount}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Words in vocab.db</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{rawDb ? "Words in vocab.db" : "Entries in JSON file"}</div>
         </div>
 
         <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-left flex flex-col justify-between border-l-4 border-l-amber-500">
@@ -235,7 +237,7 @@ export default function ImportPreviewPanel({
         <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-left flex flex-col justify-between border-l-4 border-l-emerald-500">
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">New Words</div>
           <div className="text-2xl font-extrabold text-emerald-600 mt-1">{newCount}</div>
-          <div className="text-[10px] text-slate-405 mt-0.5">Unique to Kindle</div>
+          <div className="text-[10px] text-slate-405 mt-0.5">{rawDb ? "Unique to Kindle" : "Unique vocabulary entries"}</div>
         </div>
 
         <div className="p-4 bg-slate-900 text-white border border-slate-800 rounded-xl shadow-md text-left flex flex-col justify-between">
@@ -393,7 +395,7 @@ export default function ImportPreviewPanel({
                 </div>
               </th>
               {/* Context Column */}
-              <th className="p-4 font-semibold">Kindle Context</th>
+              <th className="p-4 font-semibold">Context</th>
             </tr>
           </thead>
           <tbody>
