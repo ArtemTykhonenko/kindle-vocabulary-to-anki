@@ -56,7 +56,7 @@ export default function UploadPanel({
   const kindleInputRef = useRef<HTMLInputElement>(null);
   const ankiInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
-  const aiPrompt = `Подготовь карточки для изучения английских слов из списка ниже. Верни только корректный JSON без Markdown-ограждений и пояснений. Структура должна быть такой:
+  const aiPrompt = `Create vocabulary flashcards for the English words listed below. Return only valid JSON with no Markdown code fences or extra commentary. Use this structure:
 {
   "words": [
     {
@@ -70,10 +70,10 @@ export default function UploadPanel({
   ]
 }
 
-Для каждого слова заполни word, lang, ipa, translation, explanation и example. Сохрани исходное написание слова. В explanation дай краткое определение на английском, в translation — перевод на русский, а в example — естественное предложение на английском с этим словом. Не добавляй поля с разметкой или нумерацией.
+For every word, provide word, lang, ipa, translation, explanation, and example. Preserve the spelling of each supplied word. Write a concise definition in English in explanation, a Russian translation in translation, and a natural English sentence using the word in example. Do not add formatting or numbered list markers.
 
-Слова:
-ВСТАВЬ СЮДА СПИСОК СЛОВ`;
+Words to learn:
+PASTE YOUR WORD LIST HERE`;
 
   const processJsonFile = async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".json") && !file.name.toLowerCase().endsWith(".txt")) {
