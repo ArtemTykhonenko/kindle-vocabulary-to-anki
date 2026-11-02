@@ -38,6 +38,7 @@ export default function UploadPanel({
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [jsonLoading, setJsonLoading] = useState(false);
   const [jsonFileName, setJsonFileName] = useState<string | null>(null);
+  const [pastedJson, setPastedJson] = useState("");
   const [isJsonDragging, setIsJsonDragging] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
 
@@ -90,6 +91,18 @@ export default function UploadPanel({
       setJsonError(err.message || "Could not read the vocabulary JSON file.");
     } finally {
       setJsonLoading(false);
+    }
+  };
+
+  const processPastedJson = () => {
+    setJsonError(null);
+    try {
+      const words = parseAiVocabularyJson(pastedJson);
+      setKindleData({ words, books: [], arrayBuffer: null, fileName: "Pasted AI response" });
+      setImportSource("json");
+      setJsonFileName("Pasted AI response");
+    } catch (err: any) {
+      setJsonError(err.message || "Could not read the pasted vocabulary JSON.");
     }
   };
 
@@ -469,6 +482,27 @@ export default function UploadPanel({
             className="w-full rounded-lg border border-indigo-100 bg-white p-3 text-xs text-slate-600 font-mono resize-y"
             aria-label="Prompt to copy into an AI assistant"
           />
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="pasted-ai-vocabulary" className="text-sm font-bold text-slate-800">Or paste the AI response here</label>
+          <textarea
+            id="pasted-ai-vocabulary"
+            value={pastedJson}
+            onChange={(e) => setPastedJson(e.target.value)}
+            placeholder={'Paste the JSON response, for example: { "words": [...] }'}
+            rows={7}
+            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 font-mono resize-y focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+          />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={processPastedJson}
+              disabled={!pastedJson.trim()}
+              className="px-4 py-2 rounded-lg bg-indigo-700 text-white text-xs font-bold hover:bg-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Import pasted text
+            </button>
+          </div>
         </div>
         <div
           onDragOver={(e) => { e.preventDefault(); setIsJsonDragging(true); }}
