@@ -4,9 +4,10 @@
  */
 
 import React, { useState, useRef } from "react";
-import { Upload, FileCode, CheckCircle, Database, HelpCircle, Loader2, ArrowRight, Usb, FolderOpen, X, AlertCircle } from "lucide-react";
+import { Upload, FileCode, CheckCircle, Database, HelpCircle, Loader2, ArrowRight, Usb, FolderOpen, X, AlertCircle, Sparkles } from "lucide-react";
 import { parseKindleVocabDb } from "../utils/sqliteParser";
 import { parseAnkiExportFile } from "../utils/ankiParser";
+import { parseAiVocabularyJson } from "../utils/aiVocabularyParser";
 import { Book, Word } from "../types";
 
 interface UploadPanelProps {
@@ -33,6 +34,12 @@ export default function UploadPanel({
 
   const [ankiWords, setAnkiWords] = useState<Set<string> | null>(null);
   const [ankiFileName, setAnkiFileName] = useState<string | null>(null);
+  const [importSource, setImportSource] = useState<"kindle" | "json">("kindle");
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [jsonLoading, setJsonLoading] = useState(false);
+  const [jsonFileName, setJsonFileName] = useState<string | null>(null);
+  const [isJsonDragging, setIsJsonDragging] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   // Loading & Error states
   const [kindleLoading, setKindleLoading] = useState(false);
@@ -47,6 +54,44 @@ export default function UploadPanel({
   // File input refs
   const kindleInputRef = useRef<HTMLInputElement>(null);
   const ankiInputRef = useRef<HTMLInputElement>(null);
+  const jsonInputRef = useRef<HTMLInputElement>(null);
+  const aiPrompt = `Подготовь карточки для изучения английских слов из списка ниже. Верни только корректный JSON без Markdown-ограждений и пояснений. Структура должна быть такой:
+{
+  "words": [
+    {
+      "word": "serendipity",
+      "lang": "en",
+      "ipa": "/ˌser.ənˈdɪp.ə.ti/",
+      "translation": "счастливая случайность",
+      "explanation": "A short, clear English definition.",
+      "example": "A natural English sentence using the word."
+    }
+  ]
+}
+
+Для каждого слова заполни word, lang, ipa, translation, explanation и example. Сохрани исходное написание слова. В explanation дай краткое определение на английском, в translation — перевод на русский, а в example — естественное предложение на английском с этим словом. Не добавляй поля с разметкой или нумерацией.
+
+Слова:
+ВСТАВЬ СЮДА СПИСОК СЛОВ`;
+
+  const processJsonFile = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".json") && !file.name.toLowerCase().endsWith(".txt")) {
+      setJsonError("Please upload a .json file or a .txt file containing JSON.");
+      return;
+    }
+    setJsonLoading(true);
+    setJsonError(null);
+    try {
+      const words = parseAiVocabularyJson(await file.text());
+      setKindleData({ words, books: [], arrayBuffer: null, fileName: file.name });
+      setImportSource("json");
+      setJsonFileName(file.name);
+    } catch (err: any) {
+      setJsonError(err.message || "Could not read the vocabulary JSON file.");
+    } finally {
+      setJsonLoading(false);
+    }
+  };
 
   // Process Kindle DB file
   const processKindleFile = async (file: File) => {
@@ -72,6 +117,7 @@ export default function UploadPanel({
         arrayBuffer,
         fileName: file.name,
       });
+      setImportSource("kindle");
     } catch (err: any) {
       console.error(err);
       setKindleError(
@@ -249,7 +295,7 @@ export default function UploadPanel({
                   <p className="text-slate-500 text-[10px]">Unpacking local tables and loading stems</p>
                 </div>
               </div>
-            ) : kindleData ? (
+            ) : kindleData && importSource === "kindle" ? (
               <div className="space-y-3">
                 <div className="h-9 w-9 rounded-lg bg-slate-900 text-white flex items-center justify-center mx-auto border border-slate-950">
                   <CheckCircle className="h-5 w-5" />
@@ -388,6 +434,89 @@ export default function UploadPanel({
             </div>
           )}
         </div>
+      </div>
+
+      {/* AI-prepared vocabulary JSON */}
+      <div className="space-y-2 text-left">
+        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI-prepared vocabulary</label>
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold text-slate-800">1. Copy this prompt to your AI</p>
+              <p className="text-xs text-slate-500">Replace the last line with the words you want to learn.</p>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(aiPrompt);
+                  setPromptCopied(true);
+                  window.setTimeout(() => setPromptCopied(false), 2000);
+                } catch {
+                  setJsonError("Could not copy automatically. Select and copy the prompt text below.");
+                }
+              }}
+              className="shrink-0 px-3 py-2 rounded-lg bg-indigo-700 text-white text-xs font-bold hover:bg-indigo-800"
+            >
+              {promptCopied ? "Copied" : "Copy prompt"}
+            </button>
+          </div>
+          <textarea
+            readOnly
+            value={aiPrompt}
+            onClick={(e) => e.currentTarget.select()}
+            rows={10}
+            className="w-full rounded-lg border border-indigo-100 bg-white p-3 text-xs text-slate-600 font-mono resize-y"
+            aria-label="Prompt to copy into an AI assistant"
+          />
+        </div>
+        <div
+          onDragOver={(e) => { e.preventDefault(); setIsJsonDragging(true); }}
+          onDragLeave={() => setIsJsonDragging(false)}
+          onDrop={async (e) => {
+            e.preventDefault();
+            setIsJsonDragging(false);
+            if (e.dataTransfer.files[0]) await processJsonFile(e.dataTransfer.files[0]);
+          }}
+          onClick={() => jsonInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${isJsonDragging ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40"}`}
+        >
+          <input
+            type="file"
+            ref={jsonInputRef}
+            accept=".json,.txt,application/json,text/plain"
+            className="hidden"
+            onChange={async (e) => {
+              if (e.target.files?.[0]) await processJsonFile(e.target.files[0]);
+              e.target.value = "";
+            }}
+          />
+          {jsonLoading ? (
+            <Loader2 className="h-6 w-6 text-indigo-600 animate-spin mx-auto" />
+          ) : jsonFileName && importSource === "json" ? (
+            <div className="flex items-center justify-center gap-3 text-left">
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
+              <div>
+                <p className="font-semibold text-slate-800 text-sm">{jsonFileName}</p>
+                <p className="text-xs text-slate-500">Loaded {kindleData?.words.length ?? 0} vocabulary entries.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Sparkles className="h-5 w-5 text-indigo-600" />
+              <div>
+                <p className="font-semibold text-slate-800 text-sm">2. Upload the text file returned by your AI</p>
+                <p className="text-xs text-slate-500">Upload a .json file or a .txt file containing the raw JSON response.</p>
+              </div>
+              <a href="/examples/ai-vocabulary-example.json" download onClick={(e) => e.stopPropagation()} className="text-xs font-bold text-indigo-700 hover:underline">Example JSON</a>
+            </div>
+          )}
+        </div>
+        {jsonError && (
+          <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 flex gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />{jsonError}
+          </div>
+        )}
       </div>
 
       {/* Continue button */}
