@@ -101,13 +101,14 @@ export default function VocabularyTable({
   const readyPercent = words.length > 0 ? Math.round((translatedCount / words.length) * 100) : 0;
 
   // Target Language (defaults to Ukrainian "uk")
-  const [targetLang, setTargetLang] = useState<string>(
-    () => localStorage.getItem("kindle_target_lang") || "uk"
-  );
+  const [targetLang, setTargetLang] = useState<string>(() => {
+    localStorage.removeItem("kindle_target_lang");
+    return localStorage.getItem("k2a_target_lang_uk_v2") || "uk";
+  });
   const [sourceLang] = useState<string>("auto");
 
   useEffect(() => {
-    localStorage.setItem("kindle_target_lang", targetLang);
+    localStorage.setItem("k2a_target_lang_uk_v2", targetLang);
   }, [targetLang]);
 
   // Filters & Search

@@ -23,6 +23,7 @@ import {
 import UploadPanel from "./components/UploadPanel";
 import VocabularyTable from "./components/VocabularyTable";
 import AnkiSyncPanel from "./components/AnkiSyncPanel";
+import { SAMPLE_WORDS } from "./utils/sampleData";
 
 export default function App() {
   // Navigation: "upload" | "manage" | "export"
@@ -45,7 +46,23 @@ export default function App() {
   const loadDataFromDb = async () => {
     try {
       const allBooks = await getAllBooks();
-      const allWords = await getAllWords();
+      let allWords = await getAllWords();
+
+      // Refresh cached sample demo words if they were stored in an earlier session
+      const sampleMap = new Map(SAMPLE_WORDS.map((sw) => [sw.id, sw]));
+      let updatedSample = false;
+      allWords = allWords.map((w) => {
+        const freshSample = sampleMap.get(w.id);
+        if (freshSample && w.translation !== freshSample.translation) {
+          updatedSample = true;
+          return { ...w, translation: freshSample.translation };
+        }
+        return w;
+      });
+      if (updatedSample) {
+        await saveWords(allWords);
+      }
+
       setBooks(allBooks);
       setWords(allWords);
       return allWords;
