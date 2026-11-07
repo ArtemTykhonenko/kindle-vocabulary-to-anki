@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="borderGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="50%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="pageGrad" x1="12" y1="18" x2="52" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#67E8F9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#0D101B"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" stroke="url(#borderGrad)" stroke-width="2" stroke-opacity="0.85"/>
+  <!-- Open Book Left Page -->
+  <path d="M13 21C13 19.3431 14.3431 18 16 18H25C28.866 18 32 21.134 32 25V46C32 44.3431 30.6569 43 29 43H16C14.3431 43 13 41.6569 13 40V21Z" stroke="url(#pageGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Open Book Right Page -->
+  <path d="M51 21C51 19.3431 49.6569 18 48 18H39C35.134 18 32 21.134 32 25V46C32 44.3431 33.3431 43 35 43H48C49.6569 43 51 41.6569 51 40V21Z" stroke="url(#pageGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

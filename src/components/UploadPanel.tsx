@@ -4,296 +4,225 @@
  */
 
 import React, { useState, useRef } from "react";
-import { Upload, FileCode, CheckCircle, Database, HelpCircle, Loader2, ArrowRight, Usb, FolderOpen, X, AlertCircle, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  Upload,
+  Loader2,
+  ArrowRight,
+  Usb,
+  AlertCircle,
+  Play
+} from "lucide-react";
 import { parseKindleVocabDb } from "../utils/sqliteParser";
-import { parseAnkiExportFile } from "../utils/ankiParser";
-import { parseAiVocabularyJson } from "../utils/aiVocabularyParser";
+import { parseAnyWordsInput } from "../utils/aiVocabularyParser";
+import { SAMPLE_WORDS, SAMPLE_KINDLE_BOOKS } from "../utils/sampleData";
 import { Book, Word } from "../types";
 
 interface UploadPanelProps {
-  onContinue: (
-    kindleData: { words: Word[]; books: Book[]; arrayBuffer: ArrayBuffer | null },
-    ankiWords: Set<string> | null
-  ) => void;
-  wordsCount: number;
+  onWordsLoaded: (words: Word[], books: Book[], shouldAutoTranslate?: boolean) => void;
+  existingCount: number;
   onNavigateToManage: () => void;
 }
 
 export default function UploadPanel({
-  onContinue,
-  wordsCount,
+  onWordsLoaded,
+  existingCount,
   onNavigateToManage,
 }: UploadPanelProps) {
-  // Staged files states
-  const [kindleData, setKindleData] = useState<{
-    words: Word[];
-    books: Book[];
-    arrayBuffer: ArrayBuffer | null;
-    fileName: string;
-  } | null>(null);
+  // Mode: "kindle" | "text"
+  const [activeTab, setActiveTab] = useState<"kindle" | "text">("kindle");
 
-  const [ankiWords, setAnkiWords] = useState<Set<string> | null>(null);
-  const [ankiFileName, setAnkiFileName] = useState<string | null>(null);
-  const [importSource, setImportSource] = useState<"kindle" | "json">("kindle");
-  const [jsonError, setJsonError] = useState<string | null>(null);
-  const [jsonLoading, setJsonLoading] = useState(false);
-  const [jsonFileName, setJsonFileName] = useState<string | null>(null);
-  const [pastedJson, setPastedJson] = useState("");
-  const [isJsonDragging, setIsJsonDragging] = useState(false);
-  const [promptCopied, setPromptCopied] = useState(false);
-
-  // Loading & Error states
+  // Kindle Upload States
   const [kindleLoading, setKindleLoading] = useState(false);
-  const [ankiLoading, setAnkiLoading] = useState(false);
   const [kindleError, setKindleError] = useState<string | null>(null);
-  const [ankiError, setAnkiError] = useState<string | null>(null);
-
-  // Drag states
   const [isKindleDragging, setIsKindleDragging] = useState(false);
-  const [isAnkiDragging, setIsAnkiDragging] = useState(false);
-
-  // File input refs
   const kindleInputRef = useRef<HTMLInputElement>(null);
-  const ankiInputRef = useRef<HTMLInputElement>(null);
-  const jsonInputRef = useRef<HTMLInputElement>(null);
-  const aiPrompt = `Create vocabulary flashcards for the English words listed below. Return only valid JSON with no Markdown code fences or extra commentary. Use this structure:
-{
-  "words": [
-    {
-      "word": "serendipity",
-      "lang": "en",
-      "ipa": "/ˌser.ənˈdɪp.ə.ti/",
-      "translation": "счастливая случайность",
-      "explanation": "A short, clear English definition.",
-      "example": "A natural English sentence using the word."
-    }
-  ]
-}
 
-For every word, provide word, lang, ipa, translation, explanation, and example. Preserve the spelling of each supplied word. Write a concise definition in English in explanation, a Russian translation in translation, and a natural English sentence using the word in example. Do not add formatting or numbered list markers.
+  // Custom Word List Input States
+  const [rawTextWords, setRawTextWords] = useState("");
+  const [autoTranslateOnImport, setAutoTranslateOnImport] = useState(true);
+  const [textError, setTextError] = useState<string | null>(null);
+  const [textLoading, setTextLoading] = useState(false);
 
-Words to learn:
-PASTE YOUR WORD LIST HERE`;
-
-  const processJsonFile = async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".json") && !file.name.toLowerCase().endsWith(".txt")) {
-      setJsonError("Please upload a .json file or a .txt file containing JSON.");
-      return;
-    }
-    setJsonLoading(true);
-    setJsonError(null);
-    try {
-      const words = parseAiVocabularyJson(await file.text());
-      setKindleData({ words, books: [], arrayBuffer: null, fileName: file.name });
-      setImportSource("json");
-      setJsonFileName(file.name);
-    } catch (err: any) {
-      setJsonError(err.message || "Could not read the vocabulary JSON file.");
-    } finally {
-      setJsonLoading(false);
-    }
-  };
-
-  const processPastedJson = () => {
-    setJsonError(null);
-    try {
-      const words = parseAiVocabularyJson(pastedJson);
-      setKindleData({ words, books: [], arrayBuffer: null, fileName: "Pasted AI response" });
-      setImportSource("json");
-      setJsonFileName("Pasted AI response");
-    } catch (err: any) {
-      setJsonError(err.message || "Could not read the pasted vocabulary JSON.");
-    }
-  };
-
-  // Process Kindle DB file
-  const processKindleFile = async (file: File) => {
+  // Handle Kindle vocab.db
+  const handleProcessKindleFile = async (file: File) => {
     if (!file.name.endsWith(".db") && file.name !== "vocab.db") {
-      setKindleError("Please upload a SQLite database file (e.g. vocab.db).");
+      setKindleError("Please choose your Kindle 'vocab.db' file.");
       return;
     }
 
     setKindleLoading(true);
     setKindleError(null);
-    setKindleData(null);
 
     try {
-      // 1. Client-side parse of local SQLite file
       const { words, books } = await parseKindleVocabDb(file);
 
-      // 2. Read array buffer
-      const arrayBuffer = await file.arrayBuffer();
+      if (words.length === 0) {
+        throw new Error("No words found in this Kindle database file.");
+      }
 
-      setKindleData({
-        words,
-        books,
-        arrayBuffer,
-        fileName: file.name,
-      });
-      setImportSource("kindle");
+      onWordsLoaded(words, books, true);
     } catch (err: any) {
       console.error(err);
       setKindleError(
         err.message ||
-          "Failed to parse DB. Ensure this is a valid Kindle 'vocab.db' file loaded from /system/vocabulary/vocab.db."
+          "Could not read database. Please make sure this is a valid Kindle 'vocab.db' file."
       );
     } finally {
       setKindleLoading(false);
     }
   };
 
-  // Process Anki export file
-  const processAnkiFile = async (file: File) => {
-    if (!file.name.endsWith(".txt") && !file.name.endsWith(".csv") && !file.name.endsWith(".tsv")) {
-      setAnkiError("Please upload a plain text, CSV, or TSV file exported from Anki.");
+  // Handle Custom Word List
+  const handleImportPlainWords = () => {
+    setTextError(null);
+    if (!rawTextWords.trim()) {
+      setTextError("Please enter or paste at least one word.");
       return;
     }
 
-    setAnkiLoading(true);
-    setAnkiError(null);
-    setAnkiWords(null);
-    setAnkiFileName(null);
-
+    setTextLoading(true);
     try {
-      const text = await file.text();
-      const parsedSet = parseAnkiExportFile(text);
-      
-      setAnkiWords(parsedSet);
-      setAnkiFileName(file.name);
+      const parsedWords = parseAnyWordsInput(rawTextWords);
+      onWordsLoaded(parsedWords, [], autoTranslateOnImport);
     } catch (err: any) {
-      console.error(err);
-      setAnkiError(err.message || "Failed to parse Anki file. Please ensure it is a text export.");
+      setTextError(err.message || "Could not parse word list.");
     } finally {
-      setAnkiLoading(false);
+      setTextLoading(false);
     }
   };
 
-  const handleRemoveAnkiFile = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setAnkiWords(null);
-    setAnkiFileName(null);
-    setAnkiError(null);
-    if (ankiInputRef.current) {
-      ankiInputRef.current.value = "";
-    }
-  };
-
-  // Kindle Drag Handlers
-  const handleKindleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsKindleDragging(true);
-  };
-  const handleKindleDragLeave = () => {
-    setIsKindleDragging(false);
-  };
-  const handleKindleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsKindleDragging(false);
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      await processKindleFile(files[0]);
-    }
-  };
-
-  // Anki Drag Handlers
-  const handleAnkiDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsAnkiDragging(true);
-  };
-  const handleAnkiDragLeave = () => {
-    setIsAnkiDragging(false);
-  };
-  const handleAnkiDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsAnkiDragging(false);
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      await processAnkiFile(files[0]);
-    }
+  // Quick Sample Preloader
+  const handleLoadSampleData = () => {
+    onWordsLoaded(SAMPLE_WORDS, SAMPLE_KINDLE_BOOKS, false);
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 py-4">
-      {/* Existing Database Banner */}
-      {wordsCount > 0 && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in font-sans">
-          <div className="flex items-center gap-3.5">
-            <div className="h-10 w-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-md shrink-0">
-              <Database className="h-5 w-5" />
+    <div className="max-w-3xl mx-auto space-y-7 py-2">
+      {/* Existing deck resume notice */}
+      {existingCount > 0 && (
+        <div className="flex items-center justify-between p-4 sm:px-5 bg-[#111522]/90 border border-white/10 rounded-2xl shadow-lg">
+          <div className="text-left space-y-0.5">
+            <div className="text-xs font-bold text-white tabular-nums">
+              Active Deck · {existingCount} words
             </div>
-            <div className="text-left font-sans">
-              <h3 className="font-bold text-slate-900 text-sm">Workspace Database Active</h3>
-              <p className="text-xs text-slate-500">
-                You currently have <b>{wordsCount}</b> words saved locally. You can sync or manage them directly.
-              </p>
+            <div className="text-[11px] text-slate-400">
+              Return to your current deck or import additional words below.
             </div>
           </div>
           <button
+            type="button"
             onClick={onNavigateToManage}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-black text-white font-bold rounded-lg text-xs transition cursor-pointer select-none shadow-sm hover:shadow hover:scale-[1.01] shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-[0_0_16px_rgba(124,58,237,0.4)] transition cursor-pointer whitespace-nowrap shrink-0"
           >
-            Manage Vocabulary
+            <span>Open Deck</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      {/* Step Guide Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-5 bg-white border border-slate-200 rounded-xl flex gap-4 text-left shadow-sm hover:shadow-md transition">
-          <div className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm">
-            <Usb className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Step 1</div>
-            <h4 className="font-bold text-slate-900 text-sm">Connect Kindle & Locate DB</h4>
-            <p className="text-xs text-slate-550 leading-relaxed">
-              Connect your Kindle via USB and find the database file at:
-              <code className="bg-slate-50 text-slate-700 px-1.5 py-0.5 rounded text-[10px] select-all font-mono font-bold block mt-1 border border-slate-200">
-                /system/vocabulary/vocab.db
-              </code>
-            </p>
-          </div>
+      {/* Hero Header */}
+      <div className="text-center space-y-3 pt-1">
+        <div className="text-xs font-semibold text-indigo-400 tracking-wide">
+          Kindle Vocabulary & Custom Word Lists → Ready-to-Study Cards
+        </div>
+        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white text-balance">
+          Turn any words into{" "}
+          <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
+            Anki Flashcards
+          </span>
+        </h1>
+        <p className="text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
+          Upload your Kindle{" "}
+          <code className="font-mono text-xs bg-white/10 border border-white/10 px-1.5 py-0.5 rounded text-slate-200">
+            vocab.db
+          </code>{" "}
+          or paste any word list. We automatically translate every word and add IPA phonetics, definitions, and examples.
+        </p>
+      </div>
+
+      {/* 2-Card Source Selector */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div
+          className={`rounded-2xl p-[1px] transition-all ${
+            activeTab === "kindle"
+              ? "bg-gradient-to-r from-violet-500/85 via-indigo-500/60 to-cyan-400/85 shadow-[0_0_28px_-6px_rgba(34,211,238,0.28)]"
+              : "bg-white/10 hover:bg-white/20"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab("kindle")}
+            className="w-full h-full flex items-start gap-3.5 p-4 rounded-[15px] bg-[#101420] text-left transition cursor-pointer"
+          >
+            <div className="h-11 w-11 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.18)] flex items-center justify-center shrink-0">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="text-sm font-bold text-white">Kindle vocab.db</div>
+              <p className="text-xs text-slate-400 leading-snug">
+                Import words & original book quotes directly from your Kindle e-reader
+              </p>
+            </div>
+          </button>
         </div>
 
-        <div className="p-5 bg-white border border-slate-200 rounded-xl flex gap-4 text-left shadow-sm hover:shadow-md transition">
-          <div className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm">
-            <FileCode className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Step 2 (Optional)</div>
-            <h4 className="font-bold text-slate-900 text-sm">Export Anki Deck to Text</h4>
-            <p className="text-xs text-slate-550 leading-relaxed">
-              In Anki, click <span className="font-semibold text-slate-700">Export</span>, choose <span className="font-semibold text-slate-700">Notes in Plain Text (.txt)</span>, and save the file to match against Kindle duplicates.
-            </p>
-          </div>
+        <div
+          className={`rounded-2xl p-[1px] transition-all ${
+            activeTab === "text"
+              ? "bg-gradient-to-r from-violet-500/85 via-indigo-500/60 to-cyan-400/85 shadow-[0_0_28px_-6px_rgba(34,211,238,0.28)]"
+              : "bg-white/10 hover:bg-white/20"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab("text")}
+            className="w-full h-full flex items-start gap-3.5 p-4 rounded-[15px] bg-[#101420] text-left transition cursor-pointer"
+          >
+            <div className="h-11 w-11 rounded-xl bg-indigo-500/15 border border-indigo-400/40 text-indigo-300 shadow-[0_0_16px_rgba(99,102,241,0.2)] flex items-center justify-center shrink-0">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="text-sm font-bold text-white">Custom Word List</div>
+              <p className="text-xs text-slate-400 leading-snug">
+                Paste any list of words for automatic translation, IPA & examples
+              </p>
+            </div>
+          </button>
         </div>
       </div>
 
-      {/* Upload Drag & Drop Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Kindle File Box */}
-        <div className="space-y-2 text-left">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Kindle Vocabulary Database</label>
+      {/* TAB 1: KINDLE VOCAB.DB */}
+      {activeTab === "kindle" && (
+        <div className="space-y-4 animate-fade-in text-left">
+          {/* Main Dropzone */}
           <div
-            onDragOver={handleKindleDragOver}
-            onDragLeave={handleKindleDragLeave}
-            onDrop={handleKindleDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsKindleDragging(true);
+            }}
+            onDragLeave={() => setIsKindleDragging(false)}
+            onDrop={async (e) => {
+              e.preventDefault();
+              setIsKindleDragging(false);
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                await handleProcessKindleFile(e.dataTransfer.files[0]);
+              }
+            }}
             onClick={() => kindleInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all min-h-[190px] flex flex-col justify-center items-center ${
+            className={`border-2 border-dashed rounded-2xl p-9 sm:p-11 text-center cursor-pointer transition-all ${
               isKindleDragging
-                ? "border-slate-900 bg-slate-100/60 scale-[0.99] shadow-sm"
-                : kindleData
-                ? "border-slate-300 bg-slate-50/30 hover:bg-slate-50/60"
-                : "border-slate-200 hover:border-slate-350 hover:bg-slate-50/55"
+                ? "border-cyan-400 bg-indigo-950/30 scale-[0.99]"
+                : "border-indigo-500/35 bg-[#0D101B]/90 hover:border-indigo-400/60 hover:bg-[#111524]"
             }`}
           >
             <input
               type="file"
               ref={kindleInputRef}
               onChange={async (e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  await processKindleFile(e.target.files[0]);
+                if (e.target.files && e.target.files[0]) {
+                  await handleProcessKindleFile(e.target.files[0]);
                 }
               }}
               className="hidden"
@@ -301,268 +230,168 @@ PASTE YOUR WORD LIST HERE`;
             />
 
             {kindleLoading ? (
-              <div className="space-y-3">
-                <Loader2 className="h-8 w-8 text-slate-900 animate-spin mx-auto" />
-                <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">Parsing vocab.db...</h3>
-                  <p className="text-slate-500 text-[10px]">Unpacking local tables and loading stems</p>
-                </div>
-              </div>
-            ) : kindleData && importSource === "kindle" ? (
-              <div className="space-y-3">
-                <div className="h-9 w-9 rounded-lg bg-slate-900 text-white flex items-center justify-center mx-auto border border-slate-950">
-                  <CheckCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm truncate max-w-[240px] mx-auto">
-                    {kindleData.fileName}
-                  </h4>
-                  <p className="text-xs text-slate-550 mt-1">
-                    Detected <b>{kindleData.words.length}</b> words and <b>{kindleData.books.length}</b> books.
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-100 text-[10px] font-bold rounded-full font-sans">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                    Ready to Preview
-                  </span>
+              <div className="space-y-3 py-4">
+                <Loader2 className="h-8 w-8 text-violet-400 animate-spin mx-auto" />
+                <div className="space-y-0.5">
+                  <div className="text-sm font-bold text-white">Reading Kindle database...</div>
+                  <div className="text-xs text-slate-400">
+                    Extracting looked-up words and book sentences
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="h-9 w-9 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center mx-auto shadow-sm">
-                  <Upload className="h-4 w-4" />
+              <div className="space-y-3.5 py-2">
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center mx-auto shadow-[0_0_24px_rgba(124,58,237,0.5)]">
+                  <Upload className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">Drag and drop vocab.db here</h3>
-                  <p className="text-slate-400 text-xs">or click to browse your folders</p>
-                </div>
-                <div className="inline-flex items-center text-[10px] text-slate-700 gap-1 font-semibold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                  <Database className="h-2.5 w-2.5 text-slate-550" />
-                  SQLite Engine Required
+                <div className="space-y-1">
+                  <div className="text-base font-bold text-white">
+                    Drop your Kindle{" "}
+                    <code className="bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-2 py-0.5 rounded text-xs font-mono">
+                      vocab.db
+                    </code>{" "}
+                    here
+                  </div>
+                  <p className="text-xs text-slate-400">or click to browse from your computer</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Kindle Error */}
+          {/* Kindle Error Alert */}
           {kindleError && (
-            <div className="p-3.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-750 flex items-start gap-2.5 animate-fade-in font-sans">
-              <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h5 className="font-bold">Error reading Kindle database</h5>
-                <p className="leading-relaxed">{kindleError}</p>
+            <div className="p-3.5 bg-red-950/50 border border-red-500/40 rounded-xl text-xs text-red-200 flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+              <div className="space-y-0.5">
+                <div className="font-bold text-white">Could not load database</div>
+                <p>{kindleError}</p>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Anki File Box */}
-        <div className="space-y-2 text-left">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Anki Export File (Optional)
-          </label>
-          <div
-            onDragOver={handleAnkiDragOver}
-            onDragLeave={handleAnkiDragLeave}
-            onDrop={handleAnkiDrop}
-            onClick={() => ankiInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all min-h-[190px] flex flex-col justify-center items-center relative ${
-              isAnkiDragging
-                ? "border-slate-900 bg-slate-100/60 scale-[0.99] shadow-sm"
-                : ankiWords
-                ? "border-slate-300 bg-slate-50/30 hover:bg-slate-50/60"
-                : "border-slate-200 hover:border-slate-350 hover:bg-slate-50/55"
-            }`}
-          >
-            <input
-              type="file"
-              ref={ankiInputRef}
-              onChange={async (e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  await processAnkiFile(e.target.files[0]);
+          {/* 3 Step Instruction Guide */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div className="p-4 bg-[#101420] border border-white/10 rounded-2xl text-left space-y-1.5">
+              <div className="text-xs font-bold text-indigo-400">01. Connect Kindle</div>
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Usb className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Plug in via USB</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Connect your Kindle to your computer with a USB cable.
+              </p>
+            </div>
+
+            <div className="p-4 bg-[#101420] border border-white/10 rounded-2xl text-left space-y-1.5">
+              <div className="text-xs font-bold text-indigo-400">02. Find vocab.db</div>
+              <div className="text-xs font-bold text-white">Hidden system folder</div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Open Kindle drive:
+                <code className="block mt-1 font-mono text-[10px] bg-white/5 p-1 rounded text-slate-300 select-all border border-white/10">
+                  system/vocabulary/vocab.db
+                </code>
+              </p>
+            </div>
+
+            <div className="p-4 bg-[#101420] border border-white/10 rounded-2xl text-left space-y-1.5">
+              <div className="text-xs font-bold text-indigo-400">03. Translate & Export</div>
+              <div className="text-xs font-bold text-white">Ready for Anki</div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                We translate your words, add IPA & examples, and let you clean your Kindle.
+              </p>
+            </div>
+          </div>
+
+          {/* Single subtle Demo Strip */}
+          <div className="flex items-center justify-between px-4 py-3 bg-[#101420]/70 border border-white/8 rounded-2xl text-xs">
+            <span className="text-slate-400">
+              Don’t have your Kindle connected right now?
+            </span>
+            <button
+              type="button"
+              onClick={handleLoadSampleData}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white/8 hover:bg-white/14 text-white font-semibold rounded-xl border border-white/10 transition cursor-pointer whitespace-nowrap"
+            >
+              <Play className="h-3 w-3 fill-current text-indigo-400" />
+              <span>Try Demo Deck (5 cards)</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: CUSTOM WORD LIST */}
+      {activeTab === "text" && (
+        <div className="p-6 bg-[#101420] border border-white/10 rounded-2xl shadow-xl space-y-5 animate-fade-in text-left">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="word-list-input" className="text-xs font-bold text-slate-200">
+                Paste words (one per line, comma-separated, or{" "}
+                <code className="font-mono text-indigo-400">word - translation</code>)
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setRawTextWords("serendipity\nubiquitous\nmeticulous\nephemeral\nresilience")
                 }
-              }}
-              className="hidden"
-              accept=".txt,.csv,.tsv"
+                className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+              >
+                Fill example words
+              </button>
+            </div>
+            <textarea
+              id="word-list-input"
+              rows={6}
+              value={rawTextWords}
+              onChange={(e) => setRawTextWords(e.target.value)}
+              placeholder={`serendipity\nubiquitous\nmeticulous\nephemeral - недолговечный`}
+              className="w-full text-xs font-mono p-3.5 border border-white/10 rounded-xl bg-[#0B0E17] text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition resize-y"
             />
+          </div>
 
-            {ankiLoading ? (
-              <div className="space-y-3">
-                <Loader2 className="h-8 w-8 text-slate-900 animate-spin mx-auto" />
-                <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">Parsing Anki file...</h3>
-                  <p className="text-slate-500 text-[10px]">Scanning text columns for vocabulary items</p>
-                </div>
-              </div>
-            ) : ankiWords ? (
-              <div className="space-y-3">
-                {/* Remove button */}
-                <button
-                  onClick={handleRemoveAnkiFile}
-                  className="absolute top-3 right-3 p-1 text-slate-450 hover:text-slate-600 hover:bg-slate-100 rounded-md transition cursor-pointer"
-                  title="Remove Anki file"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-                <div className="h-9 w-9 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center mx-auto shadow-sm">
-                  <FileCode className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm truncate max-w-[240px] mx-auto">
-                    {ankiFileName}
-                  </h4>
-                  <p className="text-xs text-slate-550 mt-1">
-                    Imported <b>{ankiWords.size}</b> unique words from Anki.
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-0.5 bg-indigo-50 text-indigo-805 border border-indigo-150 text-[10px] font-bold rounded-full font-sans">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
-                    Loaded successfully
+          {/* Auto-translate toggle */}
+          <label className="flex items-center gap-3 p-3.5 bg-[#151928] border border-white/10 rounded-xl cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={autoTranslateOnImport}
+              onChange={(e) => setAutoTranslateOnImport(e.target.checked)}
+              className="rounded border-white/20 bg-white/5 text-violet-600 focus:ring-violet-500 h-4 w-4 cursor-pointer"
+            />
+            <div className="text-xs">
+              <span className="font-bold text-white">
+                Auto-translate words on import
+              </span>
+              <span className="text-slate-400 block text-[11px]">
+                Automatically adds translation, IPA phonetics, definition & usage example
+              </span>
+            </div>
+          </label>
+
+          {textError && (
+            <div className="p-3 bg-red-950/50 border border-red-500/40 rounded-xl text-xs text-red-200 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+              <span>{textError}</span>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={handleImportPlainWords}
+              disabled={textLoading || !rawTextWords.trim()}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-violet-600 via-indigo-500 to-teal-400 hover:opacity-95 disabled:opacity-30 text-white text-xs font-bold rounded-xl transition shadow-[0_0_20px_rgba(45,212,191,0.25)] cursor-pointer whitespace-nowrap"
+            >
+              {textLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <span>
+                    {autoTranslateOnImport ? "Import & Translate" : "Import Words"}
                   </span>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="h-9 w-9 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center mx-auto shadow-sm">
-                  <Upload className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">Drag & drop Anki export here</h3>
-                  <p className="text-slate-400 text-xs">or click to select .txt / .csv file</p>
-                </div>
-                <div className="inline-flex items-center text-[10px] text-slate-700 gap-1 font-semibold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                  <FileCode className="h-2.5 w-2.5 text-slate-550" />
-                  Notes in Plain Text (.txt)
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Anki Error */}
-          {ankiError && (
-            <div className="p-3.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-750 flex items-start gap-2.5 animate-fade-in">
-              <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h5 className="font-bold">Error reading Anki export</h5>
-                <p className="leading-relaxed">{ankiError}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* AI-prepared vocabulary JSON */}
-      <div className="space-y-2 text-left">
-        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI-prepared vocabulary</label>
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-bold text-slate-800">1. Copy this prompt to your AI</p>
-              <p className="text-xs text-slate-500">Replace the last line with the words you want to learn.</p>
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(aiPrompt);
-                  setPromptCopied(true);
-                  window.setTimeout(() => setPromptCopied(false), 2000);
-                } catch {
-                  setJsonError("Could not copy automatically. Select and copy the prompt text below.");
-                }
-              }}
-              className="shrink-0 px-3 py-2 rounded-lg bg-indigo-700 text-white text-xs font-bold hover:bg-indigo-800"
-            >
-              {promptCopied ? "Copied" : "Copy prompt"}
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </div>
-          <textarea
-            readOnly
-            value={aiPrompt}
-            onClick={(e) => e.currentTarget.select()}
-            rows={10}
-            className="w-full rounded-lg border border-indigo-100 bg-white p-3 text-xs text-slate-600 font-mono resize-y"
-            aria-label="Prompt to copy into an AI assistant"
-          />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="pasted-ai-vocabulary" className="text-sm font-bold text-slate-800">Or paste the AI response here</label>
-          <textarea
-            id="pasted-ai-vocabulary"
-            value={pastedJson}
-            onChange={(e) => setPastedJson(e.target.value)}
-            placeholder={'Paste the JSON response, for example: { "words": [...] }'}
-            rows={7}
-            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 font-mono resize-y focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
-          />
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={processPastedJson}
-              disabled={!pastedJson.trim()}
-              className="px-4 py-2 rounded-lg bg-indigo-700 text-white text-xs font-bold hover:bg-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Import pasted text
-            </button>
-          </div>
-        </div>
-        <div
-          onDragOver={(e) => { e.preventDefault(); setIsJsonDragging(true); }}
-          onDragLeave={() => setIsJsonDragging(false)}
-          onDrop={async (e) => {
-            e.preventDefault();
-            setIsJsonDragging(false);
-            if (e.dataTransfer.files[0]) await processJsonFile(e.dataTransfer.files[0]);
-          }}
-          onClick={() => jsonInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${isJsonDragging ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40"}`}
-        >
-          <input
-            type="file"
-            ref={jsonInputRef}
-            accept=".json,.txt,application/json,text/plain"
-            className="hidden"
-            onChange={async (e) => {
-              if (e.target.files?.[0]) await processJsonFile(e.target.files[0]);
-              e.target.value = "";
-            }}
-          />
-          {jsonLoading ? (
-            <Loader2 className="h-6 w-6 text-indigo-600 animate-spin mx-auto" />
-          ) : jsonFileName && importSource === "json" ? (
-            <div className="flex items-center justify-center gap-3 text-left">
-              <CheckCircle className="h-5 w-5 text-emerald-600" />
-              <div>
-                <p className="font-semibold text-slate-800 text-sm">{jsonFileName}</p>
-                <p className="text-xs text-slate-500">Loaded {kindleData?.words.length ?? 0} vocabulary entries.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Sparkles className="h-5 w-5 text-indigo-600" />
-              <div>
-                <p className="font-semibold text-slate-800 text-sm">2. Upload the text file returned by your AI</p>
-                <p className="text-xs text-slate-500">Upload a .json file or a .txt file containing the raw JSON response.</p>
-              </div>
-              <a href="/examples/ai-vocabulary-example.json" download onClick={(e) => e.stopPropagation()} className="text-xs font-bold text-indigo-700 hover:underline">Example JSON</a>
-            </div>
-          )}
-        </div>
-        {jsonError && (
-          <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 flex gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" />{jsonError}
-          </div>
-        )}
-      </div>
-
-      {/* Continue button */}
-      {kindleData && (
-        <div className="flex justify-end pt-4 border-t border-slate-200 animate-fade-in">
-          <button
-            onClick={() => onContinue(kindleData, ankiWords)}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-sm transition cursor-pointer select-none shadow-md hover:shadow-lg hover:scale-[1.01]"
-          >
-            <span>Continue to Import Preview</span>
-            <ArrowRight className="h-4.5 w-4.5" />
-          </button>
         </div>
       )}
     </div>

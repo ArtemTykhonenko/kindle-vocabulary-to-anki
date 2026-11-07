@@ -30,18 +30,15 @@ export function getDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event: any) => {
       const db = event.target.result;
-      
-      // Store for books
+
       if (!db.objectStoreNames.contains("books")) {
         db.createObjectStore("books", { keyPath: "id" });
       }
 
-      // Store for words
       if (!db.objectStoreNames.contains("words")) {
         db.createObjectStore("words", { keyPath: "id" });
       }
 
-      // Store for raw database file
       if (!db.objectStoreNames.contains("dbFile")) {
         db.createObjectStore("dbFile");
       }
@@ -68,8 +65,7 @@ export async function saveBooks(books: Book[]): Promise<void> {
 }
 
 /**
- * Save words to local DB. If duplicate, we preserve existing properties
- * (like status, translation, ipa, etc.) so we don't overwrite Gemini translation work!
+ * Save words to local DB. Preserves existing translations/enrichments on duplicates.
  */
 export async function saveWords(words: Word[]): Promise<{ newCount: number; updatedCount: number }> {
   const db = await getDB();
@@ -91,7 +87,6 @@ export async function saveWords(words: Word[]): Promise<{ newCount: number; upda
     words.forEach((word) => {
       const existing = existingMap.get(word.id);
       if (existing) {
-        // Word exists! Preserve work
         const merged: Word = {
           ...word,
           status: existing.status || "new",
@@ -104,7 +99,6 @@ export async function saveWords(words: Word[]): Promise<{ newCount: number; upda
         store.put(merged);
         updatedCount++;
       } else {
-        // Word is brand new!
         store.put({
           ...word,
           status: "new",
@@ -113,6 +107,25 @@ export async function saveWords(words: Word[]): Promise<{ newCount: number; upda
         newCount++;
       }
     });
+  });
+}
+
+/**
+ * Delete multiple words by ID in a single transaction
+ */
+export async function deleteWordsByIds(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction("words", "readwrite");
+    const store = transaction.objectStore("words");
+
+    ids.forEach((id) => {
+      store.delete(id);
+    });
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
   });
 }
 
@@ -143,7 +156,6 @@ export async function getAllWords(): Promise<Word[]> {
 
     request.onsuccess = () => {
       const results = request.result || [];
-      // Sort in descending order of lookup timestamp or word addition timestamp
       results.sort((a, b) => {
         const timeA = a.lookupTimestamp || a.wordTimestamp || 0;
         const timeB = b.lookupTimestamp || b.wordTimestamp || 0;

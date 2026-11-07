@@ -4,49 +4,44 @@
  */
 
 import React, { useState, useEffect } from "react";
-import {
-  RefreshCw,
-  Database,
-  Trash2,
-  Github
-} from "lucide-react";
+import { Trash2, Github, RotateCcw, X } from "lucide-react";
 
 // Types
 import { Word, Book } from "./types";
 
-// DB and API Helpers
-import { getAllBooks, getAllWords, clearAllLocalData } from "./utils/db";
-import { getBackendStatus } from "./utils/api";
+// DB Helpers
+import {
+  getAllBooks,
+  getAllWords,
+  saveWords,
+  saveBooks,
+  deleteWordsByIds,
+  clearAllLocalData,
+} from "./utils/db";
 
 // Panels
 import UploadPanel from "./components/UploadPanel";
 import VocabularyTable from "./components/VocabularyTable";
 import AnkiSyncPanel from "./components/AnkiSyncPanel";
-import ImportPreviewPanel from "./components/ImportPreviewPanel";
 
 export default function App() {
-  // Screen navigation state: "upload" | "preview" | "manage" | "export"
-  const [currentScreen, setCurrentScreen] = useState<"upload" | "preview" | "manage" | "export">("upload");
-
-  // Temporary staging state for preview
-  const [stagedKindleData, setStagedKindleData] = useState<{
-    words: Word[];
-    books: Book[];
-    arrayBuffer: ArrayBuffer | null;
-  } | null>(null);
-
-  const [stagedAnkiWords, setStagedAnkiWords] = useState<Set<string> | null>(null);
+  // Navigation: "upload" | "manage" | "export"
+  const [currentScreen, setCurrentScreen] = useState<"upload" | "manage" | "export">("upload");
 
   // Words and Books states
   const [words, setWords] = useState<Word[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
+  const [autoTranslateTrigger, setAutoTranslateTrigger] = useState<number>(0);
 
-  // Connection states
-  const [serverOnline, setServerOnline] = useState<boolean>(false);
-  const [loadingStatus, setLoadingStatus] = useState<boolean>(true);
+  // Inline confirmation state for resetting the entire deck
+  const [confirmingReset, setConfirmingReset] = useState<boolean>(false);
 
-  // Load from db
+  // Undo buffer for bulk deletion
+  const [lastDeletedWords, setLastDeletedWords] = useState<Word[] | null>(null);
+
+  // Load from local IndexedDB
   const loadDataFromDb = async () => {
     try {
       const allBooks = await getAllBooks();
@@ -55,194 +50,314 @@ export default function App() {
       setWords(allWords);
       return allWords;
     } catch (err) {
-      console.error("Failed to load local IndexedDB metrics:", err);
+      console.warn("Storage read notice:", err);
       return [];
-    }
-  };
-
-  // Check server status
-  const checkStatus = async () => {
-    setLoadingStatus(true);
-    try {
-      const status = await getBackendStatus();
-      setServerOnline(status.status === "ok");
-    } catch (err) {
-      console.error("Backend health status check failed:", err);
-      setServerOnline(false);
-    } finally {
-      setLoadingStatus(false);
     }
   };
 
   useEffect(() => {
     const init = async () => {
-      const allWords = await loadDataFromDb();
-      if (allWords.length > 0) {
-        setCurrentScreen("manage");
-      } else {
-        setCurrentScreen("upload");
+      try {
+        const storedWords = await loadDataFromDb();
+        if (storedWords.length > 0) {
+          setCurrentScreen("manage");
+        } else {
+          setCurrentScreen("upload");
+        }
+      } finally {
+        setIsInitializing(false);
       }
-      await checkStatus();
     };
     init();
   }, []);
 
-  const handleContinueToPreview = (
-    kindleData: { words: Word[]; books: Book[]; arrayBuffer: ArrayBuffer | null },
-    ankiWords: Set<string> | null
-  ) => {
-    setStagedKindleData(kindleData);
-    setStagedAnkiWords(ankiWords);
-    setCurrentScreen("preview");
-  };
-
-  const handleConfirmImport = async (
-    selectedWords: Word[],
-    selectedBooks: Book[],
-    rawDb: ArrayBuffer | null
+  // When words are loaded from Kindle vocab.db or Custom Word List
+  const handleWordsLoaded = async (
+    loadedWords: Word[],
+    loadedBooks: Book[],
+    shouldAutoTranslate: boolean = false
   ) => {
     try {
-      const { saveBooks, saveWords, saveRawDbFile } = await import("./utils/db");
-      
-      // 1. Save books
-      await saveBooks(selectedBooks);
-
-      // 2. Save words checking duplicates elegantly
-      await saveWords(selectedWords);
-
-      // 3. Save raw database binary for export back to Kindle
-      if (rawDb) {
-        await saveRawDbFile(rawDb);
+      if (loadedBooks.length > 0) {
+        await saveBooks(loadedBooks);
       }
-
-      // Reload database values and navigate to manage screen
+      await saveWords(loadedWords);
       await loadDataFromDb();
       setCurrentScreen("manage");
-      
-      // Clear staging states
-      setStagedKindleData(null);
-      setStagedAnkiWords(null);
+      if (shouldAutoTranslate) {
+        setAutoTranslateTrigger((prev) => prev + 1);
+      }
     } catch (err: any) {
       console.error(err);
-      alert("Failed to save imported vocabulary to database: " + (err.message || String(err)));
+      setWords((prev) => [...loadedWords, ...prev]);
+      if (loadedBooks.length > 0) {
+        setBooks(loadedBooks);
+      }
+      setCurrentScreen("manage");
+      if (shouldAutoTranslate) {
+        setAutoTranslateTrigger((prev) => prev + 1);
+      }
     }
   };
 
-  const handleCancelImport = () => {
-    setStagedKindleData(null);
-    setStagedAnkiWords(null);
+  // Add custom single word
+  const handleAddCustomWord = async (newWord: Word, shouldTranslate: boolean = false) => {
+    try {
+      await saveWords([newWord]);
+      await loadDataFromDb();
+      if (shouldTranslate) {
+        setAutoTranslateTrigger((prev) => prev + 1);
+      }
+    } catch {
+      setWords((prev) => [newWord, ...prev]);
+    }
+  };
+
+  // Bulk or single delete words
+  const handleDeleteWords = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    const removed = words.filter((w) => idSet.has(w.id));
+    if (removed.length > 0) {
+      setLastDeletedWords(removed);
+    }
+
+    setWords((prev) => prev.filter((w) => !idSet.has(w.id)));
+
+    try {
+      await deleteWordsByIds(ids);
+      await loadDataFromDb();
+    } catch (err) {
+      console.error("Failed to delete words from IndexedDB:", err);
+    }
+  };
+
+  // Undo last bulk deletion
+  const handleUndoDelete = async () => {
+    if (!lastDeletedWords || lastDeletedWords.length === 0) return;
+    const toRestore = lastDeletedWords;
+    setLastDeletedWords(null);
+    setWords((prev) => [...toRestore, ...prev]);
+    try {
+      await saveWords(toRestore);
+      await loadDataFromDb();
+    } catch (err) {
+      console.error("Failed to restore words:", err);
+    }
+  };
+
+  // Clear data / Start fresh
+  const handleExecuteResetDeck = async () => {
+    setConfirmingReset(false);
+    setLastDeletedWords(null);
+    try {
+      await clearAllLocalData();
+    } catch {
+      // ignore
+    }
+    setWords([]);
+    setBooks([]);
+    setSelectedBookId(null);
     setCurrentScreen("upload");
   };
 
-  const handleClearData = async () => {
-    if (!confirm("Are you sure you want to delete all local data? This action will wipe your local vocabulary builder storage and is irreversible.")) {
-      return;
-    }
-    try {
-      await clearAllLocalData();
-      setWords([]);
-      setBooks([]);
-      setSelectedBookId(null);
-      setCurrentScreen("upload");
-    } catch (err: any) {
-      console.error("Failed to reset database:", err);
-      alert("Failed to reset database: " + (err.message || String(err)));
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col antialiased">
-      {/* TOP NAVBAR */}
-      <header className="flex h-16 items-center justify-between border-b border-slate-200 px-6 sm:px-8 bg-white shrink-0 shadow-sm z-10">
-        <div className="flex items-center gap-3">
-          <img
-            src="/logo.png"
-            alt="Kindle to Anki Logo"
-            className="h-8 w-8 rounded-lg object-cover shadow-sm select-none"
-          />
-          <div className="space-y-0.5">
-            <h1 className="text-sm font-extrabold tracking-tight text-slate-900">Kindle to Anki</h1>
-            <div className="text-[10px] text-slate-400 font-semibold select-none">
-              Generate flashcards for Anki
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#080A10] text-slate-100 font-sans flex flex-col antialiased relative overflow-x-hidden selection:bg-violet-500 selection:text-white">
+      {/* Ambient Aurora Backdrop Glows */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      >
+        <div className="absolute -top-40 -left-32 w-[540px] h-[420px] rounded-full bg-violet-600/18 blur-[130px]" />
+        <div className="absolute -top-32 -right-32 w-[540px] h-[420px] rounded-full bg-cyan-500/15 blur-[135px]" />
+        <div className="absolute bottom-0 left-1/3 w-[600px] h-[350px] rounded-full bg-indigo-600/10 blur-[140px]" />
+      </div>
 
-        <div className="flex items-center gap-3">
-          {/* GitHub Link */}
+      {/* TOP BAR: 3 ZONES */}
+      <header className="relative z-30 flex h-16 items-center justify-between gap-6 border-b border-white/10 px-6 sm:px-8 bg-[#0C0F19]/85 backdrop-blur-xl sticky top-0">
+        {/* Zone 1: Brand Wordmark with Book Icon */}
+        <a
+          href="#top"
+          onClick={(e) => {
+            e.preventDefault();
+            setCurrentScreen(words.length > 0 ? "manage" : "upload");
+          }}
+          className="flex items-center gap-2.5 whitespace-nowrap shrink-0 group"
+        >
+          <img
+            src="/favicon.svg"
+            alt="kindle2anki book logo"
+            className="h-9 w-9 rounded-xl object-cover shadow-[0_0_15px_rgba(139,92,246,0.25)] transition group-hover:scale-105"
+          />
+          <span className="text-base font-extrabold tracking-tight text-white">
+            kindle
+            <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
+              2anki
+            </span>
+            <span className="text-slate-500 font-medium text-xs">.online</span>
+          </span>
+        </a>
+
+        {/* Zone 2: Step Navigation Pill */}
+        <nav className="hidden md:flex items-center gap-1 p-1 bg-[#131724] rounded-xl border border-white/10 text-xs">
+          <button
+            type="button"
+            onClick={() => setCurrentScreen("upload")}
+            className={`px-4 py-1.5 font-semibold rounded-lg transition whitespace-nowrap shrink-0 cursor-pointer ${
+              currentScreen === "upload"
+                ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_0_18px_rgba(124,58,237,0.45)]"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            1. Add Words
+          </button>
+          <button
+            type="button"
+            disabled={words.length === 0}
+            onClick={() => setCurrentScreen("manage")}
+            className={`px-4 py-1.5 font-semibold rounded-lg transition whitespace-nowrap shrink-0 cursor-pointer tabular-nums disabled:opacity-35 disabled:cursor-not-allowed ${
+              currentScreen === "manage"
+                ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_0_18px_rgba(124,58,237,0.45)]"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            2. Translate & Edit {words.length > 0 ? `(${words.length})` : ""}
+          </button>
+          <button
+            type="button"
+            disabled={words.length === 0}
+            onClick={() => setCurrentScreen("export")}
+            className={`px-4 py-1.5 font-semibold rounded-lg transition whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${
+              currentScreen === "export"
+                ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_0_18px_rgba(124,58,237,0.45)]"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            3. Export
+          </button>
+        </nav>
+
+        {/* Zone 3: Start New Deck & GitHub */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          {words.length > 0 && (
+            <>
+              {confirmingReset ? (
+                <div className="inline-flex items-center gap-2 bg-red-950/60 border border-red-500/40 px-3 py-1 rounded-xl">
+                  <span className="text-[11px] font-semibold text-red-200 whitespace-nowrap">
+                    Clear all {words.length} words?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleExecuteResetDeck}
+                    className="px-2.5 py-0.5 bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold rounded-md transition cursor-pointer whitespace-nowrap"
+                  >
+                    Yes, Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingReset(false)}
+                    className="p-0.5 text-slate-400 hover:text-white cursor-pointer"
+                    aria-label="Cancel clear"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingReset(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-[#141826] hover:bg-[#1C2133] border border-white/10 rounded-xl transition cursor-pointer whitespace-nowrap shrink-0"
+                  title="Clear current deck and start over"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="hidden sm:inline">Start New Deck</span>
+                </button>
+              )}
+            </>
+          )}
+
           <a
-            href="https://github.com/ArtemTykhonenko/kindle-vocabulary-to-anki/blob/main/README.md"
+            href="https://github.com/ArtemTykhonenko/kindle-vocabulary-to-anki"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-md transition text-xs font-semibold select-none cursor-pointer border border-transparent"
-            title="View README on GitHub"
+            className="p-2 text-slate-300 hover:text-white bg-[#141826] hover:bg-[#1C2133] border border-white/10 rounded-xl transition"
+            title="GitHub Repository"
           >
             <Github className="h-4 w-4" />
-            <span className="hidden sm:inline">README</span>
           </a>
-
-          {/* Clear Database trigger */}
-          {words.length > 0 && (
-            <button
-              onClick={handleClearData}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-md transition text-xs font-semibold select-none cursor-pointer border border-transparent hover:border-red-100"
-              title="Wipe vocabulary lists"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Reset Database</span>
-            </button>
-          )}
         </div>
       </header>
 
-      {/* MAIN WORKSPACE WRAPPER */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50/50 overflow-y-auto">
-        <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8">
-          {currentScreen === "upload" && (
-            <UploadPanel 
-              onContinue={handleContinueToPreview} 
-              wordsCount={words.length}
-              onNavigateToManage={() => setCurrentScreen("manage")}
-            />
-          )}
+      {/* UNDO DELETION BANNER */}
+      {lastDeletedWords && lastDeletedWords.length > 0 && (
+        <div className="relative z-20 bg-[#151928] border-b border-violet-500/30 text-slate-100 px-4 py-2.5 text-xs flex items-center justify-center gap-4 shadow-lg animate-fade-in">
+          <span className="font-medium tabular-nums">
+            Removed <b className="text-white">{lastDeletedWords.length}</b>{" "}
+            {lastDeletedWords.length === 1 ? "word" : "words"}.
+          </span>
+          <button
+            type="button"
+            onClick={handleUndoDelete}
+            className="inline-flex items-center gap-1 px-3 py-1 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg transition cursor-pointer"
+          >
+            <RotateCcw className="h-3 w-3" />
+            <span>Undo</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLastDeletedWords(null)}
+            className="text-slate-400 hover:text-white cursor-pointer"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
-          {currentScreen === "preview" && stagedKindleData && (
-            <ImportPreviewPanel
-              words={stagedKindleData.words}
-              books={stagedKindleData.books}
-              rawDb={stagedKindleData.arrayBuffer}
-              ankiWords={stagedAnkiWords}
-              onConfirmImport={handleConfirmImport}
-              onCancel={handleCancelImport}
-            />
-          )}
+      {/* MAIN CONTENT VIEWPORT */}
+      <main className="relative z-10 flex-1 flex flex-col min-w-0">
+        <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 md:p-8">
+          {isInitializing ? (
+            <div className="py-20 text-center text-slate-500 text-xs">Loading vocabulary...</div>
+          ) : (
+            <>
+              {currentScreen === "upload" && (
+                <UploadPanel
+                  onWordsLoaded={handleWordsLoaded}
+                  existingCount={words.length}
+                  onNavigateToManage={() => setCurrentScreen("manage")}
+                />
+              )}
 
-          {currentScreen === "manage" && (
-            <VocabularyTable
-              words={words}
-              books={books}
-              selectedBookId={selectedBookId}
-              onSelectBook={setSelectedBookId}
-              onRefreshWords={loadDataFromDb}
-              serverOnline={serverOnline}
-              onNavigateToExport={() => setCurrentScreen("export")}
-              onNavigateToUpload={() => setCurrentScreen("upload")}
-            />
-          )}
+              {currentScreen === "manage" && (
+                <VocabularyTable
+                  words={words}
+                  books={books}
+                  selectedBookId={selectedBookId}
+                  onSelectBook={setSelectedBookId}
+                  onRefreshWords={loadDataFromDb}
+                  onNavigateToExport={() => setCurrentScreen("export")}
+                  onAddCustomWord={handleAddCustomWord}
+                  onDeleteWords={handleDeleteWords}
+                  autoTranslateTrigger={autoTranslateTrigger}
+                />
+              )}
 
-          {currentScreen === "export" && (
-            <AnkiSyncPanel 
-              words={words} 
-              onRefreshWords={loadDataFromDb} 
-              onNavigateToManage={() => setCurrentScreen("manage")}
-            />
+              {currentScreen === "export" && (
+                <AnkiSyncPanel
+                  words={words}
+                  onRefreshWords={loadDataFromDb}
+                />
+              )}
+            </>
           )}
         </div>
 
-        {/* Footer credits bar */}
-        <footer className="bg-white border-t border-slate-200/60 py-4 mt-auto shrink-0">
-          <div className="max-w-7xl mx-auto px-6 sm:px-8 text-center text-[11px] text-slate-400 font-medium">
-            © 2026 Kindle to Anki
+        {/* Subtle Dark Footer */}
+        <footer className="border-t border-white/8 py-4 mt-auto bg-[#080A10]/60 backdrop-blur-md">
+          <div className="max-w-6xl mx-auto px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>kindle2anki.online · Kindle Vocabulary & Custom Words to Anki Flashcards</span>
+            <span>100% Browser-Based · Audio Pronunciation · Dictionary Translations</span>
           </div>
         </footer>
       </main>
