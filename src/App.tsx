@@ -53,9 +53,17 @@ export default function App() {
       let updatedSample = false;
       allWords = allWords.map((w) => {
         const freshSample = sampleMap.get(w.id);
-        if (freshSample && w.translation !== freshSample.translation) {
+        if (
+          freshSample &&
+          (w.translation !== freshSample.translation ||
+            w.explanation !== freshSample.explanation)
+        ) {
           updatedSample = true;
-          return { ...w, translation: freshSample.translation };
+          return {
+            ...w,
+            translation: freshSample.translation,
+            explanation: freshSample.explanation,
+          };
         }
         return w;
       });

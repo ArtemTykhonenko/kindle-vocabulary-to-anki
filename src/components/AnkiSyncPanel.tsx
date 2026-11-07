@@ -104,7 +104,7 @@ export default function AnkiSyncPanel({
     wordTimestamp: Date.now(),
     translation: "ефемерний, недовговічний",
     ipa: "/ɪˈfem.ər.əl/",
-    explanation: "(adjective) Lasting for a very short time; fleeting.",
+    explanation: "(прикметник) Триває дуже короткий час; швидкоплинний.",
     context: "He realized that fame in such a volatile society was entirely ephemeral.",
     example: "Spring blossom is extraordinarily beautiful, yet completely ephemeral.",
     bookTitle: "1984",

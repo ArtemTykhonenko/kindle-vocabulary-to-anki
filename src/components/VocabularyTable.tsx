@@ -105,6 +105,7 @@ export default function VocabularyTable({
     localStorage.removeItem("kindle_target_lang");
     return localStorage.getItem("k2a_target_lang_uk_v2") || "uk";
   });
+  const [langChanged, setLangChanged] = useState<boolean>(false);
   const [sourceLang] = useState<string>("auto");
 
   useEffect(() => {
@@ -212,12 +213,15 @@ export default function VocabularyTable({
         ? targetIds
         : selectedWordIds.size > 0
         ? Array.from(selectedWordIds)
+        : langChanged
+        ? words.map((w) => w.id)
         : untranslatedIds.length > 0
         ? untranslatedIds
         : words.map((w) => w.id);
 
     if (idsToTranslate.length === 0) return;
 
+    setLangChanged(false);
     setIsTranslating(true);
     setTranslationProgress({ done: 0, total: idsToTranslate.length });
 
@@ -434,7 +438,10 @@ export default function VocabularyTable({
                 <span>Translate to:</span>
                 <select
                   value={targetLang}
-                  onChange={(e) => setTargetLang(e.target.value)}
+                  onChange={(e) => {
+                    setTargetLang(e.target.value);
+                    setLangChanged(true);
+                  }}
                   aria-label="Target language"
                   className="text-xs bg-[#151926] border border-white/10 rounded-xl px-3 py-2 font-bold text-white hover:border-white/20 focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
@@ -465,6 +472,8 @@ export default function VocabularyTable({
                     <span>
                       {selectedWordIds.size > 0
                         ? `Translate Selected (${selectedWordIds.size})`
+                        : langChanged
+                        ? "Translate All"
                         : untranslatedCount > 0
                         ? `Translate (${untranslatedCount})`
                         : "Translate All"}

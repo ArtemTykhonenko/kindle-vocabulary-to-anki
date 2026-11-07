@@ -43,6 +43,31 @@ export function guessClientLemmas(word: string, stem?: string): string[] {
 }
 
 /**
+ * Translates a short text (such as a dictionary definition with part-of-speech)
+ * into the target language `tl`.
+ */
+async function translateShortText(text: string, sl: string, tl: string): Promise<string> {
+  if (!text || sl === tl) return text;
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&hl=${tl}&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data?.[0])) {
+        const joined = data[0]
+          .map((seg: any) => (typeof seg?.[0] === "string" ? seg[0] : ""))
+          .join("")
+          .trim();
+        if (joined) return joined;
+      }
+    }
+  } catch {
+    // Fallback to original text if translation fails
+  }
+  return text;
+}
+
+/**
  * Look up a single word directly in the browser using autonomous public dictionary & translation APIs.
  */
 async function lookupSingleWordClient(
@@ -55,12 +80,13 @@ async function lookupSingleWordClient(
 
   let translation = "";
   let ipa = "";
-  let explanation = "";
+  let rawExplanationEn = "";
   let example = "";
 
   const fetchTranslationMeta = async () => {
     try {
-      const transUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&dt=bd&dt=md&dt=ex&q=${encodeURIComponent(item.word)}`;
+      // Pass hl=en here so part-of-speech tags in dt=md are consistently in English before we translate the full definition into `tl`
+      const transUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&hl=en&sl=${sl}&tl=${tl}&dt=t&dt=bd&dt=md&dt=ex&q=${encodeURIComponent(item.word)}`;
       const transRes = await fetch(transUrl);
       if (transRes.ok) {
         const transData = await transRes.json();
@@ -72,17 +98,24 @@ async function lookupSingleWordClient(
           }
         }
         // 2. Primary translation (dt=t)
-        if (!translation && transData?.[0]?.[0]?.[0]) {
-          translation = transData[0][0][0];
+        if (!translation && Array.isArray(transData?.[0])) {
+          translation = transData[0]
+            .map((seg: any) => (typeof seg?.[0] === "string" ? seg[0] : ""))
+            .join("")
+            .trim();
         }
         // 3. Fallback definition (dt=md)
         if (Array.isArray(transData?.[12]) && transData[12].length > 0) {
           const defBlock = transData[12][0];
           const pos = defBlock?.[0] ? `(${defBlock[0]}) ` : "";
           const firstDef = defBlock?.[1]?.[0]?.[0];
-          if (firstDef) explanation = pos + firstDef;
+          if (firstDef && !rawExplanationEn) {
+            rawExplanationEn = pos + firstDef;
+          }
           const firstDefEx = defBlock?.[1]?.[0]?.[2];
-          if (firstDefEx) example = String(firstDefEx).replace(/<\/?[^>]+(>|$)/g, "");
+          if (firstDefEx && !example) {
+            example = String(firstDefEx).replace(/<\/?[^>]+(>|$)/g, "");
+          }
         }
         // 4. Fallback example sentence (dt=ex)
         if (!example && Array.isArray(transData?.[13]?.[0]) && transData[13][0].length > 0) {
@@ -155,7 +188,7 @@ async function lookupSingleWordClient(
 
         if (dictExplanation || dictIpa) {
           if (dictIpa) ipa = dictIpa;
-          if (dictExplanation) explanation = dictExplanation;
+          if (dictExplanation) rawExplanationEn = dictExplanation;
           if (dictExample) example = dictExample;
           break;
         }
@@ -167,11 +200,17 @@ async function lookupSingleWordClient(
 
   await Promise.all([fetchTranslationMeta(), fetchOpenDictionary()]);
 
+  // Translate the part-of-speech and definition into the target language `tl` (when `tl !== "en"`)
+  const localizedExplanation =
+    rawExplanationEn && tl !== "en"
+      ? await translateShortText(rawExplanationEn, "en", tl)
+      : rawExplanationEn;
+
   return {
     word: item.word,
     translation: translation || item.word,
     ipa: ipa || "",
-    explanation: explanation || "",
+    explanation: localizedExplanation || "",
     example: example || item.context || "",
   };
 }
