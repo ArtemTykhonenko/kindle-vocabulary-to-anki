@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import { Word } from "../types";
 import { checkAnkiConnect, syncWordsToAnki, AnkiStatus } from "../utils/ankiConnect";
 import { exportToTsvStyled, exportToTsv } from "../utils/csv";
+import { playWordAudio } from "../utils/cardTemplates";
 import { buildCleanedKindleDb, downloadKindleVocabFile } from "../utils/sqliteParser";
 import {
   Download,
@@ -112,16 +113,7 @@ export default function AnkiSyncPanel({
   };
 
   const speakWord = (text: string, lang = "en-US") => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang.length === 2 ? `${lang}-${lang.toUpperCase()}` : lang;
-      utterance.rate = 0.92;
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      // Ignore speech errors
-    }
+    playWordAudio(text, previewWord.stem, lang);
   };
 
   const highlightTargetWord = (sentence: string, target: string, stem?: string) => {

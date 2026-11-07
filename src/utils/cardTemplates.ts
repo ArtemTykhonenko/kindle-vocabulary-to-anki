@@ -48,14 +48,93 @@ function highlightWord(text: string | undefined | null, word: string): string {
 }
 
 /**
- * Generates an inline onclick handler that pronounces the word inside Anki's WebView
- * (works offline via Web Speech API and falls back to online TTS audio).
+ * Plays real human dictionary MP3 pronunciation (Google/Oxford CDN -> Youdao Dictionary MP3)
+ * with fallback to Web Speech API if offline and voices are available.
  */
-function buildInlineSpeakAttr(wordText: string, lang: string = "en"): string {
-  const safeWord = wordText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+export function playWordAudio(wordText: string, stemText?: string, lang: string = "en"): void {
+  if (typeof window === "undefined") return;
+  const rawWord = (wordText || "").trim();
+  if (!rawWord) return;
+
+  const rawStem = (stemText || rawWord).trim().toLowerCase();
+  const cleanLower = rawWord.toLowerCase();
+  const oxfordWordUrl = `https://ssl.gstatic.com/dictionary/static/sounds/oxford/${encodeURIComponent(cleanLower)}--_us_1.mp3`;
+  const oxfordStemUrl = `https://ssl.gstatic.com/dictionary/static/sounds/oxford/${encodeURIComponent(rawStem)}--_us_1.mp3`;
+  const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(rawWord)}&type=2`;
+
+  const fallbackSpeech = () => {
+    if ("speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(rawWord);
+        u.lang = lang.length === 2 ? `${lang}-${lang.toUpperCase()}` : lang || "en-US";
+        u.rate = 0.92;
+        window.speechSynthesis.speak(u);
+      } catch {
+        // Ignore speech errors
+      }
+    }
+  };
+
+  try {
+    const a = new Audio(oxfordWordUrl);
+    a.onerror = () => {
+      const b = new Audio(oxfordStemUrl);
+      b.onerror = () => {
+        const c = new Audio(youdaoUrl);
+        c.onerror = fallbackSpeech;
+        c.play().catch(fallbackSpeech);
+      };
+      b.play().catch(() => {
+        const c = new Audio(youdaoUrl);
+        c.onerror = fallbackSpeech;
+        c.play().catch(fallbackSpeech);
+      });
+    };
+    a.play().catch(() => {
+      a.onerror?.(new Event("error"));
+    });
+  } catch {
+    fallbackSpeech();
+  }
+}
+
+/**
+ * Generates an inline onclick handler that works inside Anki Desktop (QtWebEngine),
+ * AnkiMobile, and AnkiDroid.
+ *
+ * Why previous speechSynthesis failed in Anki Desktop:
+ * In Anki's QtWebEngine, `window.speechSynthesis` is defined (truthy), so `if (window.speechSynthesis)`
+ * always ran, but `speechSynthesis.getVoices()` is empty `[]` in QtWebEngine, producing zero sound.
+ * Playing real MP3 audio from Oxford/Google CDN (`ssl.gstatic.com`) with fallback to Youdao MP3
+ * works directly inside Anki's WebView.
+ */
+function buildInlineSpeakAttr(wordText: string, stemText?: string, lang: string = "en"): string {
+  const rawWord = (wordText || "").trim();
+  const rawStem = (stemText || rawWord).trim().toLowerCase();
+  const encodedWord = encodeURIComponent(rawWord.toLowerCase());
+  const encodedStem = encodeURIComponent(rawStem);
+  const safeWordJs = rawWord.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "");
   const safeLang = (lang || "en").replace(/[^a-zA-Z-]/g, "");
   const bcp47 = safeLang === "en" ? "en-US" : safeLang;
-  return `if(window.speechSynthesis){window.speechSynthesis.cancel();var u=new SpeechSynthesisUtterance('${safeWord}');u.lang='${bcp47}';u.rate=0.92;window.speechSynthesis.speak(u);}else{new Audio('https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=${safeLang}&q='+encodeURIComponent('${safeWord}')).play();}`;
+
+  const oxfordWordUrl = `https://ssl.gstatic.com/dictionary/static/sounds/oxford/${encodedWord}--_us_1.mp3`;
+  const oxfordStemUrl = `https://ssl.gstatic.com/dictionary/static/sounds/oxford/${encodedStem}--_us_1.mp3`;
+  const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(rawWord)}&type=2`;
+
+  return [
+    `var a=new Audio('${oxfordWordUrl}');`,
+    `a.onerror=function(){`,
+    `var b=new Audio('${oxfordStemUrl}');`,
+    `b.onerror=function(){`,
+    `var c=new Audio('${youdaoUrl}');`,
+    `c.onerror=function(){if(window.speechSynthesis){window.speechSynthesis.cancel();var u=new SpeechSynthesisUtterance('${safeWordJs}');u.lang='${bcp47}';window.speechSynthesis.speak(u);}};`,
+    `c.play();`,
+    `};`,
+    `b.play();`,
+    `};`,
+    `a.play();`
+  ].join("");
 }
 
 const SPEAKER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>`;
@@ -64,7 +143,7 @@ const SPEAKER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="
  * Renders the HTML structure and styles for the front of the flashcard.
  */
 export function renderFront(word: Word): string {
-  const speakOnClick = buildInlineSpeakAttr(word.word, word.lang);
+  const speakOnClick = buildInlineSpeakAttr(word.word, word.stem, word.lang);
   const html = `
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
@@ -178,7 +257,7 @@ export function renderBack(word: Word): string {
 
   const highlightedContext = highlightWord(word.context, word.word);
   const highlightedExample = highlightWord(word.example, word.word);
-  const speakOnClick = buildInlineSpeakAttr(word.word, word.lang);
+  const speakOnClick = buildInlineSpeakAttr(word.word, word.stem, word.lang);
 
   const html = `
 <style>

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { translateWordsBatch } from "../utils/api";
 import { updateWordsBatch, updateWord } from "../utils/db";
+import { playWordAudio } from "../utils/cardTemplates";
 
 const LANGUAGES = [
   { code: "ru", name: "Russian (Русский)" },
@@ -52,17 +53,7 @@ interface VocabularyTableProps {
 }
 
 function speakWord(text: string, lang: string = "en-US") {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  try {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang.length === 2 ? `${lang}-${lang.toUpperCase()}` : lang;
-    if (lang === "en") utterance.lang = "en-US";
-    utterance.rate = 0.95;
-    window.speechSynthesis.speak(utterance);
-  } catch {
-    // ignore speech errors
-  }
+  playWordAudio(text, undefined, lang);
 }
 
 function renderHighlightedSentence(sentence: string, targetWord: string, stem?: string) {
