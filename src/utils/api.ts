@@ -51,7 +51,7 @@ async function lookupSingleWordClient(
   targetLang: string
 ): Promise<ExplanationResponse> {
   const sl = sourceLang === "auto" ? item.lang || "en" : sourceLang;
-  const tl = targetLang || "ru";
+  const tl = targetLang || "uk";
 
   let translation = "";
   let ipa = "";

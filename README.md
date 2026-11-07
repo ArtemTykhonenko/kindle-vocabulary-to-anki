@@ -1,70 +1,80 @@
 <p align="center">
   <a href="https://github.com/ArtemTykhonenko/kindle-vocabulary-to-anki/blob/main/README.md">
-    <img src="public/logo.png" alt="Kindle Vocabulary to Anki Logo" width="300"/>
+    <img src="public/favicon.svg" alt="Kindle Vocabulary to Anki Logo" width="88"/>
   </a>
 </p>
 
-<h1 align="center">Kindle Vocabulary to Anki Sync Hub</h1>
+<h1 align="center">Kindle Vocabulary to Anki</h1>
 
 <p align="center">
-  <em>A beautiful, local-first web utility to transform your Kindle vocabulary into Anki flashcards.</em>
+  <em>A fast, 100% browser-based utility to turn your Kindle Vocabulary Builder (<code>vocab.db</code>) and custom word lists into styled Anki flashcards with translations, IPA phonetics, book quotes, examples, and audio pronunciation.</em>
 </p>
 
 <p align="center">
-  <b>English</b> | <a href="README.uk.md">Українська</a> | <a href="README.ru.md">Русский</a>
+  <a href="https://www.kindle2anki.online"><b>kindle2anki.online</b></a> · <a href="https://www.kindletoanki.online"><b>kindletoanki.online</b></a>
+</p>
+
+<p align="center">
+  <b>English</b> | <a href="README.uk.md">Українська</a>
 </p>
 
 ---
 
-## 🌟 How it Works
+## 🌟 How It Works
 
-**Kindle Vocabulary to Anki Sync Hub** is a powerful tool designed to seamlessly bridge the gap between your reading on Kindle and your language learning journey in Anki. 
+**Kindle Vocabulary to Anki** bridges the gap between reading on your Amazon Kindle e-reader and retaining vocabulary in Anki — operating **100% client-side in your browser** with zero servers and zero AI API keys required.
 
-At its core, this utility is built for **creating Anki flashcards with translations and definitions** from words you've looked up on your Kindle device.
+1. **1. Add Words**: Connect your Kindle via USB and drop `system/vocabulary/vocab.db` into the browser (or paste any custom list of words). Your SQLite database is parsed locally in WebAssembly (`sql.js`).
+2. **2. Translate & Edit**: Automatically translate words (defaults to **English → Ukrainian**, with 14+ target languages supported including English, Ukrainian, Spanish, German, French, Polish, Russian, etc.) and enrich every card with **IPA phonetic transcriptions**, **dictionary definitions**, **original Kindle book quotes**, **usage examples**, and **human MP3 audio pronunciation**.
+3. **3. Export to Anki & Clean Kindle**: Download a ready-to-study Anki deck (`.txt`) with automatic Light & Dark mode styling and embedded audio buttons, push directly to Anki Desktop via **AnkiConnect**, and download a clean `vocab.db` file to wipe old words from your Kindle Vocabulary Builder.
 
-1. **Upload your `vocab.db`**: Connect your Kindle and drop the vocabulary database file into the web app. The parsing happens 100% locally in your browser.
-2. **Translate & Define**: We use free, AI-free lookup services (Google Translate, MyMemory, and Free Dictionary API) to fetch translations and definitions for your words.
-3. **Review & Sync**: Review the generated cards, select the languages you need, and send them directly to Anki!
+---
 
 ## ✨ Key Features
 
-### 🃏 Flashcards Creation
-The primary goal of the app is to let you generate high-quality flashcards with translations and definitions from your Kindle's lookup history.
+### 🃏 Rich, Ready-to-Study Anki Cards
+Every card is automatically populated with:
+- **Translation** in your chosen target language (default: Ukrainian `uk`).
+- **IPA Phonetics** & **Part-of-Speech Definitions** via dictionary lookup with automatic stem/lemma resolution.
+- **Highlighted Context Sentences**: preserves the exact sentence from the Kindle book where you tapped the word, plus an additional usage example.
+- **Audio Pronunciation (`🔊`)**: works both in the web interface and inside exported Anki cards (powered by Oxford Dictionary MP3 CDN with Youdao & Web Speech API fallback).
+- **Automatic Light & Dark Mode**: exported HTML cards adapt automatically to Anki Desktop, AnkiMobile, and AnkiDroid themes.
 
-### 🔄 Smart Anki Comparison
-Avoid duplicates! The app can compare your Kindle vocabulary against your existing Anki database. If a word already exists in your Anki deck, it will be highlighted or skipped, ensuring you don't waste time on words you already know.
+### 🧹 Kindle Vocabulary Cleaner (`vocab.db`)
+Amazon Kindle does not provide a simple "Delete All" button for the Vocabulary Builder on the device. After exporting your flashcards, click **Download Clean vocab.db** on the Export screen and replace `system/vocabulary/vocab.db` on your Kindle via USB to start fresh.
 
-### ✏️ Edit and Export (Kindle Style)
-Not only can you export to Anki, but you also have the ability to **edit the database and export it back in Kindle style**. This allows you to effectively manage and prune your Kindle's native `vocab.db` database, keeping your device clean and organized.
+### ⚡ Direct Sync with Anki Desktop (AnkiConnect)
+In addition to 1-click `.txt` file export, you can push cards directly into Anki Desktop using the [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on (`2055492159`). The Export screen includes a built-in 3-step setup guide and 1-click CORS JSON configuration for `kindle2anki.online` and `kindletoanki.online`.
 
-### 🔒 100% Offline & Private
-Your database is parsed client-side using WebAssembly (`sql.js`). Your `vocab.db` never leaves your machine!
+### 🔒 100% Autonomous, Serverless & Private
+- **No Backend Server**: runs as a pure static Single-Page Application (SPA).
+- **No AI Dependencies**: relies on deterministic dictionary and translation APIs directly from the browser.
+- **Local Persistence**: your active deck and original `vocab.db` binary are stored locally in your browser's `IndexedDB`.
 
 ---
 
 ## 🚀 Run Locally
 
-**Prerequisites**: [Node.js](https://nodejs.org/)
+**Prerequisites**: [Node.js](https://nodejs.org/) (v18+)
 
 1. Install dependencies:
    ```bash
    npm install
    ```
-2. Start the local server:
+2. Start the Vite development server:
    ```bash
    npm run dev
    ```
-3. Open your browser and navigate to `http://localhost:3000` to start syncing!
+3. Open `http://localhost:3000` in your browser.
 
-## ☁️ Static Hosting (Serverless / Static Deployment)
+---
 
-This application can run **completely serverless/client-side** in your browser without any running Node backend. 
+## ☁️ Static Deployment
 
-To deploy to static hosting (GitHub Pages, Vercel, Netlify, Cloudflare Pages, etc.):
+Because the app is 100% client-side, you can deploy it to any static hosting provider (Vercel, Cloudflare Pages, Netlify, GitHub Pages):
 
-1. Build the production assets:
+1. Build the production bundle:
    ```bash
    npm run build
    ```
-2. Upload the contents of the `dist/` directory directly to your static hosting provider.
-3. The frontend will automatically perform direct, sandboxed client-side fetches for translations and definitions.
+2. Deploy the generated `dist/` directory.

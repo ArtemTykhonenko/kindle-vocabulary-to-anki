@@ -343,7 +343,7 @@ export default function UploadPanel({
               rows={6}
               value={rawTextWords}
               onChange={(e) => setRawTextWords(e.target.value)}
-              placeholder={`serendipity\nubiquitous\nmeticulous\nephemeral - недолговечный`}
+              placeholder={`serendipity\nubiquitous\nmeticulous\nephemeral - недовговічний`}
               className="w-full text-xs font-mono p-3.5 border border-white/10 rounded-xl bg-[#0B0E17] text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition resize-y"
             />
           </div>

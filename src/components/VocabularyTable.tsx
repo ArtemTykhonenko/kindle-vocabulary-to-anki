@@ -24,7 +24,6 @@ import { updateWordsBatch, updateWord } from "../utils/db";
 import { playWordAudio } from "../utils/cardTemplates";
 
 const LANGUAGES = [
-  { code: "ru", name: "Russian (Русский)" },
   { code: "uk", name: "Ukrainian (Українська)" },
   { code: "en", name: "English" },
   { code: "es", name: "Spanish (Español)" },
@@ -34,6 +33,7 @@ const LANGUAGES = [
   { code: "pt", name: "Portuguese (Português)" },
   { code: "pl", name: "Polish (Polski)" },
   { code: "tr", name: "Turkish (Türkçe)" },
+  { code: "ru", name: "Russian (Русский)" },
   { code: "zh", name: "Chinese (中文)" },
   { code: "ja", name: "Japanese (日本語)" },
   { code: "ko", name: "Korean (한국어)" },
@@ -100,9 +100,9 @@ export default function VocabularyTable({
   const untranslatedCount = words.length - translatedCount;
   const readyPercent = words.length > 0 ? Math.round((translatedCount / words.length) * 100) : 0;
 
-  // Target Language
+  // Target Language (defaults to Ukrainian "uk")
   const [targetLang, setTargetLang] = useState<string>(
-    () => localStorage.getItem("kindle_target_lang") || "ru"
+    () => localStorage.getItem("kindle_target_lang") || "uk"
   );
   const [sourceLang] = useState<string>("auto");
 
@@ -986,7 +986,7 @@ export default function VocabularyTable({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. вездесущий"
+                  placeholder="e.g. всюдисущий"
                   value={newTranslationText}
                   onChange={(e) => setNewTranslationText(e.target.value)}
                   className="w-full text-xs p-2.5 bg-[#0B0E17] border border-white/10 rounded-xl text-white focus:outline-none focus:border-indigo-500"

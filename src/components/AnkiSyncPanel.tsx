@@ -102,7 +102,7 @@ export default function AnkiSyncPanel({
     stem: "ephemeral",
     lang: "en",
     wordTimestamp: Date.now(),
-    translation: "эфемерный, недолговечный",
+    translation: "ефемерний, недовговічний",
     ipa: "/ɪˈfem.ər.əl/",
     explanation: "(adjective) Lasting for a very short time; fleeting.",
     context: "He realized that fame in such a volatile society was entirely ephemeral.",

@@ -1,89 +1,85 @@
-# Kindle Vocabulary to Anki Exporter (AI-Free Mode)
+# Kindle Vocabulary to Anki — Architecture & Agent Guide
 
-This document is designed for AI developers to quickly understand the structure, architecture, and design principles of the application.
+This document describes the architecture, data flow, and engineering conventions of **Kindle Vocabulary to Anki** (`kindle2anki.online` / `kindletoanki.online`).
 
 ## Overview
 
-Kindle Sync is a local-first, privacy-focused tool that imports Kindle's vocabulary database (`vocab.db`), parses it locally in the browser, fetches translations/definitions without using any AI keys, and exports/synchronizes the results directly into Anki.
+**Kindle Vocabulary to Anki** is a 100% client-side, autonomous React + TypeScript + Vite Single-Page Application (SPA). It parses Amazon Kindle's SQLite vocabulary database (`vocab.db`) or custom word lists directly in the browser, enriches words with dictionary translations, IPA phonetics, definitions, usage examples, and human MP3 audio pronunciation without any backend server or AI dependencies, and exports ready-to-study flashcards to Anki.
 
-## Core Architectural Pillars
+## Core Architecture
 
 ```mermaid
 graph TD
-    A[vocab.db SQLite File] -->|SQL.js in Browser| B(IndexedDB: books & words)
-    B -->|Frontend Selection| C[Vocabulary Table]
-    C -->|Translation / Lookup| D{Translation Engine}
-    D -->|Local proxy or Direct browser fetch| E[Google Translate GTX API]
-    D -->|Local proxy or Direct browser fetch| F[Free Dictionary API]
-    E -->|Translation text| G[Enriched Word Data]
-    F -->|IPA, English Definition, Examples| G
-    G -->|IndexedDB update| B
-    B -->|TXT Export| H[Download TXT file (Anki)]
-    B -->|AnkiConnect API| I[Anki Desktop App]
+    A[Kindle vocab.db / Custom Word List] -->|sql.js WebAssembly / Text Parser| B(IndexedDB: KindleAnkiExporterDB)
+    B -->|Step 2: Translate & Edit| C[VocabularyTable]
+    C -->|Direct Browser Fetch| D[Google Translate GTX & Dictionary Engine]
+    C -->|Direct Browser Fetch| E[Free Dictionary API + Lemma Resolver]
+    D -->|Translation, Alternate Meanings, Examples| F[Translated Flashcard Data]
+    E -->|IPA Phonetics, POS Definitions, Examples| F
+    F -->|Persist Batch| B
+    B -->|Step 3: Export| G[Styled HTML Anki Deck .txt / Plain TSV]
+    B -->|Step 3: AnkiConnect| H[Anki Desktop 127.0.0.1:8765]
+    B -->|Step 3: Clean Kindle DB| I[Download Clean vocab.db via sql.js]
 ```
 
-### 1. Completely AI-Free Translation
-To ensure the app remains fully open-source and free, all translation and dictionary lookup capabilities rely on open-access keyless APIs:
-- **Translation**: Uses Google Translate's public `gtx` endpoint (`https://translate.googleapis.com/translate_a/single?client=gtx`). If that fails, it falls back to MyMemory Translation API (`https://api.mymemory.translated.net/get`).
-- **Dictionary Lookups**: English words are enriched with phonetic IPA transcriptions, dictionary definitions, and usage examples from the Free Dictionary API (`https://api.dictionaryapi.dev/api/v2/entries/en`).
-- **Resilience & Static Mode**: The app first tries to check if the local server is reachable at startup. If the server is offline or not deployed (static-only hosting), it immediately locks the frontend into `serverUnavailable` client-side lookup mode. This avoids useless network 404 proxy calls and performs direct browser fetches for translations.
+### 1. 100% Serverless & AI-Free Dictionary Pipeline (`src/utils/api.ts`)
+- **Zero Backend / Zero AI Keys**: All lookups execute directly in the user's browser (`src/utils/api.ts`). There is no Express server or LLM dependency.
+- **Translation & Rich Dictionary Extraction**:
+  - Primary lookup queries `https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dt=bd&dt=md&dt=ex` to retrieve primary translations, dictionary synonyms (`dt=bd`), monolingual definitions (`dt=md`), and usage examples (`dt=ex`).
+  - Automatic fallback to `https://api.mymemory.translated.net/get` if the primary endpoint is unreachable.
+- **Phonetics & Definitions**:
+  - Queries `https://api.dictionaryapi.dev/api/v2/entries/en/<word>` with automatic client-side morphological lemma resolution (`guessClientLemmas(word, stem)`) so inflected Kindle words (e.g., `-ed`, `-ing`, `-ies`, `-es`, `-s`) resolve to their base dictionary headword for IPA and definitions.
+- **Default Language Pair**:
+  - Source language defaults to `auto` (using the `lang` column from Kindle's `WORDS` table or `en`).
+  - Target language defaults to **Ukrainian (`uk`)** and persists in `localStorage` (`kindle_target_lang`). Over 14 target languages (including Ukrainian, English, Spanish, German, French, Polish, Russian, etc.) are available in the selector.
 
-### 2. Multi-Language Support
-Users can select the **Word Language** (Source Language) and **Translation Language** (Target Language) in the frontend.
-- **Source Language**: Can be hardcoded or set to "Auto". In "Auto" mode, the app uses the `lang` field parsed directly from the SQLite Kindle database for each word.
-- **Target Language**: Defaults to Russian (`ru`), but can be set to any language (persisted in `localStorage`).
+### 2. Local SQLite Parsing & Kindle `vocab.db` Cleaner (`src/utils/sqliteParser.ts`)
+- **In-Browser SQLite (`sql.js`)**: Loads `sql-wasm.js` in the browser to parse Kindle's `WORDS`, `LOOKUPS`, and `BOOK_INFO` tables locally.
+- **Kindle Vocabulary Cleaner**:
+  - Stores the original uploaded `vocab.db` binary in IndexedDB (`dbFile` object store) or generates a native Kindle-compatible SQLite schema (`BOOK_INFO`, `WORDS`, `LOOKUPS`, `METADATA`, `DICT_INFO`, `VERSION`) from scratch.
+  - Provides a single post-export action (`Download Clean vocab.db` on Step 3) that clears `WORDS` and `LOOKUPS` so users can replace `system/vocabulary/vocab.db` on their Kindle via USB.
 
-### 3. Local SQLite & Storage Sandboxing
-- **SQL.js**: The Kindle `vocab.db` database is loaded in-memory inside the browser and parsed using `sql-wasm.js` fetched from CDNJS. No databases are uploaded to external servers.
-- **IndexedDB**: Persistent local state (books and words) is saved in the browser's IndexedDB database (`KindleAnkiExporterDB`) with a simple object store.
+### 3. Audio Pronunciation in Browser & Inside Anki (`src/utils/cardTemplates.ts`)
+-Anki Desktop uses QtWebEngine (embedded Chromium), where `window.speechSynthesis` is defined as an object but `speechSynthesis.getVoices()` is empty (`[]`), causing standard Web Speech API calls to fail silently inside Anki Desktop.
+- Both the web preview (`playWordAudio`) and the exported Anki card HTML (`buildInlineSpeakAttr` in `renderFront` / `renderBack`) use a multi-tier HTML5 `Audio` pipeline:
+  1. **Primary**: Google/Oxford Dictionary human US pronunciation MP3 (`https://ssl.gstatic.com/dictionary/static/sounds/oxford/<word>--_us_1.mp3`).
+  2. **Stem Fallback**: Oxford Dictionary MP3 for the word's root stem (`<stem>--_us_1.mp3`).
+  3. **Dynamic Dictionary MP3 Fallback**: Youdao Dictionary MP3 stream (`https://dict.youdao.com/dictvoice?audio=<word>&type=2`).
+  4. **Offline Fallback**: Browser `window.speechSynthesis` when offline and system voices are available.
 
-### 4. Sidebar-Free Layout & Screen Flow
-The application layout is sidebar-free, and relies on a clean, top-down linear screen state flow defined in `src/App.tsx` via `currentScreen`:
-- **Upload (`"upload"`)**: The entry landing page featuring a centered drag-and-drop box for importing `vocab.db`. If a database is already loaded in IndexedDB, it displays a shortcut banner: `"Manage Vocabulary"`.
-- **Manage (`"manage"`)**: The main vocabulary list table. Users can select languages, run bulk translations, edit definitions, and search. A prominent **"Export & Sync"** button at the top right transitions the user to the export page. An **"Import new DB"** button allows uploading a new database.
-- **Export (`"export"`)**: The standalone export center. Displays buttons for direct Anki 1-click synchronization and tab-separated TXT file downloads. Features a **\"← Back to Vocabulary\"** button at the top to return to the list.
-
-### 5. Smart Word Frequency Rating (Non-AI)
-To provide real-life utility suggestions without incurring AI complexity or API key billing:
-- Sourced a curated dataset of the most frequent English words from Google's Trillion Word Corpus.
-- A local utility [frequency.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/frequency.ts) bundles the top 5,000 words.
-- Each imported word is checked against this list (utilizing its stem root form for precision).
-- Words are rated into three categories:
-  - ⭐⭐⭐ **Common**: Top 1,500 words.
-  - ⭐⭐ **Intermediate**: Words ranked between 1,500 and 5,000.
-  - ⭐ **Rare / Advanced**: Words outside the top 5,000.
-- Users can sort the vocabulary table by frequency rank or filter list items by their rating.
-
-### 6. Cancellable Translation Batches
-- Long-running translation batches utilize standard browser `AbortController` / `AbortSignal`.
-- If the user clicks the "Stop" button in the progress bar, the process aborts immediately.
-- To prevent loss of progress, any translations retrieved prior to clicking "Stop" are safely written into IndexedDB before the task terminates.
-
-### 7. Repacking & Downloading vocab.db back to Kindle
-To synchronize word deletions back to the Kindle reader:
-- The raw binary structure of the uploaded `vocab.db` file is stored in a dedicated `dbFile` object store in IndexedDB (schema version 2).
-- When the user requests a Kindle database download, the utility [sqliteParser.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/sqliteParser.ts) loads this original binary and instantiates a SQL.js database.
-- It queries the remaining words list from IndexedDB, runs deletion queries on both the `WORDS` and `LOOKUPS` tables for any removed items, and outputs the updated database binary.
-- This preserves native Kindle tables, indices, triggers, and configurations perfectly.
+### 4. Streamlined 3-Step User Flow (No Duplicate Controls)
+Each feature appears once in its logical step:
+1. **`1. Add Words` (`src/components/UploadPanel.tsx`)**:
+   - Upload Kindle `vocab.db` via drag-and-drop or paste a custom word list (`word` or `word - translation`).
+   - Includes a 1-click `Try Demo Deck (5 cards)` button with pre-populated sample cards.
+2. **`2. Translate & Edit` (`src/components/VocabularyTable.tsx`)**:
+   - Progress bar, search input, book filter, status filter (`All`, `Translated`, `Untranslated`), target language selector, and `Translate All` / `Translate (N)` button.
+   - Inline card editor modal and bulk selection with optimistic deletion + `Undo` banner (`src/App.tsx`).
+3. **`3. Export` (`src/components/AnkiSyncPanel.tsx`)**:
+   - Download styled HTML Anki deck (`Kindle_Vocabulary_Deck.txt`) or plain TSV (`Kindle_Vocabulary_Plain.txt`).
+   - Interactive Flashcard Preview window (`Front Side` / `Back Side` flip + audio button).
+   - Single `Clean Kindle Vocabulary (vocab.db)` card (`Download Clean vocab.db`).
+   - Collapsible `Direct Sync with Anki Desktop (AnkiConnect)` panel with a 3-step setup guide and 1-click CORS JSON config for `https://kindle2anki.online`, `https://www.kindle2anki.online`, `https://kindletoanki.online`, and `https://www.kindletoanki.online`.
 
 ---
 
-## File Structure
+## Project Structure
 
-- [server.ts](file:///d:/projects/kindle-vocabulary-to-anki/server.ts): Local Express server serving the Vite application and hosting the `/api/lookup` translation/dictionary proxy to bypass browser CORS rules.
-- [src/utils/sqliteParser.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/sqliteParser.ts): Client-side SQLite parsing script that reads tables `WORDS`, `LOOKUPS`, and `BOOK_INFO`.
-- [src/utils/db.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/db.ts): IndexedDB wrapper facilitating local operations (saving words/books, updating learning statuses).
-- [src/utils/api.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/api.ts): API interface that queries the server-side proxy `/api/lookup` or falls back to direct client-side fetch calls.
-- [src/utils/ankiConnect.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/ankiConnect.ts): Handles handshakes and synchronization payloads pushed directly into Anki Desktop.
-- [src/utils/csv.ts](file:///d:/projects/kindle-vocabulary-to-anki/src/utils/csv.ts): TSV (.txt) export script utilizing UTF-8 BOM encoding for proper international character parsing and seamless Anki import with auto-config headers.
-- [src/components/VocabularyTable.tsx](file:///d:/projects/kindle-vocabulary-to-anki/src/components/VocabularyTable.tsx): Core word manager view, detailing statuses (New, Learning, Learned) and containing translation selectors.
+- `src/App.tsx`: Top-level 3-step navigation bar (`1. Add Words`, `2. Translate & Edit`, `3. Export`), undo toast banner for deletions, and inline `Start New Deck` confirmation.
+- `src/components/UploadPanel.tsx`: Step 1 — Kindle `vocab.db` dropzone and Custom Word List importer.
+- `src/components/VocabularyTable.tsx`: Step 2 — Translation batch runner, filters, audio preview, bulk deletion, and inline card editor.
+- `src/components/AnkiSyncPanel.tsx`: Step 3 — Anki `.txt` export, interactive card preview, Kindle `vocab.db` cleaner, and AnkiConnect sync.
+- `src/utils/api.ts`: Autonomous client-side translation and dictionary lookup engine with `AbortSignal` support.
+- `src/utils/sqliteParser.ts`: WebAssembly `sql.js` parser for Kindle `vocab.db` and clean `vocab.db` generator.
+- `src/utils/cardTemplates.ts`: Styled Light/Dark mode Anki HTML card templates (`renderFront`, `renderBack`) and `playWordAudio` utility.
+- `src/utils/csv.ts`: UTF-8 BOM TSV exporter with `#separator:tab` and `#html:true` headers for Anki.
+- `src/utils/ankiConnect.ts`: Local `http://127.0.0.1:8765` AnkiConnect integration with automatic basic note type detection (`Basic`, `Базова`, `Простая`, `Einfach`, `Básico`).
+- `src/utils/db.ts`: IndexedDB (`KindleAnkiExporterDB`) storage wrapper.
+- `src/utils/aiVocabularyParser.ts` & `src/utils/aiVocabularyParser.test.ts`: Pure parser and unit tests for custom word list inputs and client-side lemma guessing.
 
 ---
 
-## Workflow Guide for AI Agents
-
-1. **Adding new APIs**: Make sure all dictionary/translation calls are added to both the local Express proxy in `server.ts` and the direct client-side fallback in `src/utils/api.ts`.
-2. **CORS Restrictions**: If you notice requests getting blocked by CORS in the browser, verify if the proxy route `/api/lookup` is working and being resolved.
-3. **Database Changes**: If you modify the IndexedDB schema, increment `DB_VERSION` in `src/utils/db.ts` and implement migration code in `onupgradeneeded`.
-4. **Git Author**: All repository commits must use the author email `artem.tykhonenko.v@gmail.com` and author name `Artem Tykhonenko`.
-
+## Engineering Conventions
+- **Code & Comments Language**: All source code, identifiers, and code comments must be written strictly in **English**.
+- **Documentation Languages**: Repository documentation is maintained in **English** (`README.md`, `Agent.md`) and **Ukrainian** (`README.uk.md`) only.
+- **No `window.confirm` / `window.alert`**: Always use inline UI confirmations or undo banners so the app works inside sandboxed iframes and all browsers.

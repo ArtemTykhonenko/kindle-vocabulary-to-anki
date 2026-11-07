@@ -66,7 +66,7 @@ export async function syncWordsToAnki(
       throw new Error(`Failed to create deck: ${deckName}`);
     }
 
-    // 1.5. Detect the correct modelName (e.g. "Basic" in English Anki, "Простая" in Russian Anki, etc.)
+    // 1.5. Detect the localized Basic note type in the user's Anki Desktop installation
     let modelName = "Basic";
     try {
       const modelNamesRes = await fetch(ANKI_CONNECT_URL, {
@@ -80,15 +80,30 @@ export async function syncWordsToAnki(
         const modelNamesJSON = await modelNamesRes.json();
         if (modelNamesJSON && Array.isArray(modelNamesJSON.result)) {
           const availableModels = modelNamesJSON.result as string[];
-          const candidates = ["Basic", "Простая", "Einfach", "Básico", "Basic (and reversed card)", "Простая (с обратной карточкой)"];
+          const candidates = [
+            "Basic",
+            "Базова",
+            "Простая",
+            "Einfach",
+            "Básico",
+            "Basic (and reversed card)",
+            "Базова (і зворотна картка)",
+            "Простая (с обратной карточкой)"
+          ];
           const found = candidates.find(c => availableModels.includes(c));
           if (found) {
             modelName = found;
           } else {
-            // Fallback: look for any name containing common basic words
+            // Fallback: look for any note type name matching common Basic note type translations
             const fuzzyFound = availableModels.find(m => {
               const lower = m.toLowerCase();
-              return lower.includes("basic") || lower.includes("простая") || lower.includes("einfach") || lower.includes("básico");
+              return (
+                lower.includes("basic") ||
+                lower.includes("базов") ||
+                lower.includes("простая") ||
+                lower.includes("einfach") ||
+                lower.includes("básico")
+              );
             });
             if (fuzzyFound) {
               modelName = fuzzyFound;

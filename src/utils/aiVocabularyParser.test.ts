@@ -18,7 +18,7 @@ test("parseAiVocabularyJson parses valid JSON object with words array", () => {
     words: [
       {
         word: "ubiquitous",
-        translation: "вездесущий",
+        translation: "всюдисущий",
         ipa: "/juːˈbɪk.wɪ.təs/",
         explanation: "Present, appearing, or found everywhere.",
         example: "Smartphones have become ubiquitous.",
@@ -29,7 +29,7 @@ test("parseAiVocabularyJson parses valid JSON object with words array", () => {
   const result = parseAiVocabularyJson(json);
   assert.equal(result.length, 1);
   assert.equal(result[0].word, "ubiquitous");
-  assert.equal(result[0].translation, "вездесущий");
+  assert.equal(result[0].translation, "всюдисущий");
   assert.equal(result[0].ipa, "/juːˈbɪk.wɪ.təs/");
 });
 
@@ -48,24 +48,24 @@ test("parsePlainTextWords parses single words per line", () => {
 
 test("parsePlainTextWords parses words with inline translations", () => {
   const text = `
-    1. serendipity - счастливая случайность
+    1. serendipity - щасливий випадок
     2. ubiquitous : omnipresent
     3. ephemeral = fleeting
   `;
   const result = parsePlainTextWords(text);
   assert.equal(result.length, 3);
   assert.equal(result[0].word, "serendipity");
-  assert.equal(result[0].translation, "счастливая случайность");
+  assert.equal(result[0].translation, "щасливий випадок");
   assert.equal(result[1].word, "ubiquitous");
   assert.equal(result[1].translation, "omnipresent");
 });
 
 test("parseAnyWordsInput seamlessly parses markdown fenced JSON", () => {
-  const input = "```json\n{\"words\":[{\"word\":\"resilience\",\"translation\":\"стойкость\"}]}\n```";
+  const input = "```json\n{\"words\":[{\"word\":\"resilience\",\"translation\":\"стійкість\"}]}\n```";
   const result = parseAnyWordsInput(input);
   assert.equal(result.length, 1);
   assert.equal(result[0].word, "resilience");
-  assert.equal(result[0].translation, "стойкость");
+  assert.equal(result[0].translation, "стійкість");
 });
 
 test("parseAnyWordsInput seamlessly falls back to plain text", () => {
@@ -83,4 +83,3 @@ test("guessClientLemmas resolves inflected forms and Kindle stems", () => {
   const verbLemmas = guessClientLemmas("fascinated");
   assert.ok(verbLemmas.includes("fascinate"));
 });
-
